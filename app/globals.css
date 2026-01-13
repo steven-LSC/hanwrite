@@ -1,26 +1,50 @@
 @import "tailwindcss";
 
+/* Pretendard Font */
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 400;
+  font-style: normal;
+  src: url("/fonts/Pretendard-Regular.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 500;
+  font-style: normal;
+  src: url("/fonts/Pretendard-Medium.woff2") format("woff2");
+  font-display: swap;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* 背景顏色 */
+  --color-bg-primary: #f8fafc;
+  --color-bg-card: #ffffff;
+  --color-bg-secondary: #f1f5f9;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* 文字顏色 */
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #475569;
+  --color-text-tertiary: #94a3b8;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* 邊框顏色 */
+  --color-border: #e2e8f0;
+
+  /* 按鈕/功能顏色 */
+  --color-primary: #10b981;
+  --color-secondary: #dbeafe;
+  --color-text-secondary-button: #1d4ed8;
+  --color-cancel: #f1f5f9;
+
+  /* 語言學習元素顏色 */
+  --color-vocab: #fef08a;
+  --color-grammar: #dbeafe;
+  --color-connective: #10b981;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }

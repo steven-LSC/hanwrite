@@ -1,0 +1,79 @@
+---
+alwaysApply: true
+---
+
+# Overview
+
+# Project Stack
+
+適用於：Next.js 16 + TypeScript + Tailwind CSS + Supabase  
+部署平台：Vercel
+
+---
+
+## 總體原則（Clean Code）
+
+- 遵循 Clean Code（乾淨程式碼）原則
+- 一個 function 只做一件事
+- 程式碼以「人好讀」為優先，而不是炫技
+- 能簡單就不要複雜（You Aren’t Gonna Need It / YAGNI）
+- 使用 best practice 的命名規則，意思要表達明確，可以使用適當並且通用的縮寫
+
+---
+
+## 檔案、邏輯、程式碼
+
+- UI 元件不可直接存取資料庫
+- Page 檔案只負責組裝，不放大量邏輯
+- 複雜邏輯請拆成小 function
+- 使用 TypeScript 必要的檢查的即可 不要過度檢查 或是寫出過度複雜的 code
+- 一些圖片或是 icon 你不確定用什麼的話 就先隨便用 但是要告訴我哪裡要改 要怎麼改
+
+---
+
+## Tailwind CSS（純 Tailwind）
+
+- 只使用 Tailwind，不寫自訂 CSS
+- 除非必要，避免 inline style
+- 樣式邏輯與業務邏輯分離
+- class 太長時，優先改善結構，而不是硬塞
+- 盡量使用簡寫，避免重複的描述，例如使用：rounded-t-[10px] 而不是 rounded-tr-[10px] rounded-tl-[10px]
+
+---
+
+## 安全與金鑰
+
+- 不可硬編碼（hardcode）：
+  - 密碼
+  - API key
+  - Supabase service role key
+- 所有敏感資訊必須放在環境變數（environment variables）
+- Server-only 的金鑰不可暴露到 client
+
+---
+
+## Supabase 使用基本原則
+
+- 不要在各個檔案亂建 Supabase client
+- Client 端只能使用「公開、安全」的功能
+- 所有使用者輸入一律視為不可信
+- 不可依賴 client 端做權限判斷
+
+---
+
+## 部署假設（Vercel）
+
+- 不依賴記憶體狀態（stateless）
+- 假設每次請求都是全新的環境
+- 不寫只在本機才會成功的程式碼
+
+---
+
+## Cursor 寫 Code 時的行為規則
+
+當新增或修改程式碼時：
+
+1. 只改與目前功能相關的部分
+2. 遵守既有命名與風格
+3. 不做未被要求的重構
+4. 不確定的地方要保守處理，不自行腦補需求
