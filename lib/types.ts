@@ -39,10 +39,26 @@ export interface ExpansionHint {
   example: string; // 韓文例句
 }
 
-// Paraphrase 相關型別（之後使用）
-export interface Paraphrase {
-  text: string;
+// Paraphrase 風格選項
+export type ParaphraseStyle = "formal" | "natural" | "native-like";
+
+// 單一修改項目
+export interface ParaphraseChange {
+  position: { start: number; end: number }; // 原句中的修改位置
+  original: string; // 原本的文字
+  revised: string; // 修改後的文字
+  explanation: string; // 解釋（顯示在 checkbox 旁）
+}
+
+// Paraphrase 完整結果
+export interface ParaphraseResult {
+  originalText: string; // 原始句子
+  changes: ParaphraseChange[]; // 所有修改項目
 }
 
 // Context Menu 狀態
-export type ContextMenuStage = "initial" | "expansion-hint" | "paraphrase";
+export type ContextMenuStage =
+  | "initial"
+  | "expansion-hint"
+  | "paraphrase-style" // 選擇風格階段
+  | "paraphrase-result"; // 顯示結果階段

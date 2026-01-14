@@ -5,8 +5,14 @@ import { Button } from "../ui/button";
 import { ContextMenu } from "./context-menu";
 import { ExpansionHintPanel } from "./expansion-hint-panel";
 import { ParaphrasePanel } from "./paraphrase-panel";
-import { getExpansionHints } from "@/lib/data/context-menu";
-import { ContextMenuStage, ExpansionHint } from "@/lib/types";
+import { ParaphraseStylePanel } from "./paraphrase-style-panel";
+import { getExpansionHints, getParaphraseResult } from "@/lib/data/context-menu";
+import {
+  ContextMenuStage,
+  ExpansionHint,
+  ParaphraseResult,
+  ParaphraseStyle,
+} from "@/lib/types";
 
 interface EditorProps {
   initialTitle?: string;
@@ -43,6 +49,14 @@ export function Editor({
     null
   );
   const [isLoadingHints, setIsLoadingHints] = useState(false);
+
+  // Paraphrase 相關狀態
+  const [paraphraseResult, setParaphraseResult] =
+    useState<ParaphraseResult | null>(null);
+  const [selectedStyle, setSelectedStyle] = useState<ParaphraseStyle | null>(
+    null
+  );
+  const [isLoadingParaphrase, setIsLoadingParaphrase] = useState(false);
 
   // 即時計算字數
   const characterCount = content.length;
@@ -137,7 +151,7 @@ export function Editor({
     requestAnimationFrame(() => {
       requestAnimationFrame(calculatePosition);
     });
-  }, [showContextMenu, menuPosition, menuStage, isLoadingHints]);
+  }, [showContextMenu, menuPosition, menuStage, isLoadingHints, isLoadingParaphrase]);
 
   // 選擇 Expansion Hint
   const handleSelectExpansionHint = async () => {
@@ -161,9 +175,22 @@ export function Editor({
     }
   };
 
-  // 選擇 Paraphrase
+  // 選擇 Paraphrase（顯示風格選擇）
   const handleSelectParaphrase = () => {
-    setMenuStage("paraphrase");
+    setMenuStage("paraphrase-style");
+
+    // 保持反白效果
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(selectionStart, selectionEnd);
+    }
+  };
+
+  // 選擇 Paraphrase 風格
+  const handleSelectStyle = async (style: ParaphraseStyle) => {
+    setSelectedStyle(style);
+    setMenuStage("paraphrase-result");
+    setIsLoadingParaphrase(true);
 
     // 保持反白效果
     if (textareaRef.current) {
@@ -171,7 +198,78 @@ export function Editor({
       textareaRef.current.setSelectionRange(selectionStart, selectionEnd);
     }
 
-    // TODO: 之後實作 Paraphrase 功能
+    try {
+      const result = await getParaphraseResult(selectedText, style);
+      setParaphraseResult(result);
+    } catch (error) {
+      console.error("Failed to fetch paraphrase result:", error);
+    } finally {
+      setIsLoadingParaphrase(false);
+    }
+  };
+
+  // Retry Paraphrase
+  const handleRetryParaphrase = async () => {
+    if (!selectedStyle) return;
+
+    setIsLoadingParaphrase(true);
+
+    // 保持反白效果
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(selectionStart, selectionEnd);
+    }
+
+    try {
+      const result = await getParaphraseResult(selectedText, selectedStyle);
+      setParaphraseResult(result);
+    } catch (error) {
+      console.error("Failed to fetch paraphrase result:", error);
+    } finally {
+      setIsLoadingParaphrase(false);
+    }
+  };
+
+  // 套用 Paraphrase 修改到編輯器
+  const handleReplaceParaphrase = (enabledChanges: Set<number>) => {
+    if (!paraphraseResult || !textareaRef.current) return;
+
+    // 取得要套用的修改（按照索引排序）
+    const changesToApply = paraphraseResult.changes
+      .map((change, index) => ({ ...change, index }))
+      .filter((change) => enabledChanges.has(change.index))
+      .sort((a, b) => b.position.start - a.position.start); // 從後往前處理避免位置偏移
+
+    // 計算新的文字內容
+    let newContent = content;
+    let adjustedStart = selectionStart;
+    let adjustedEnd = selectionEnd;
+
+    // 先計算反白區域內的新文字
+    let selectedContent = selectedText;
+    changesToApply.forEach((change) => {
+      const before = selectedContent.substring(0, change.position.start);
+      const after = selectedContent.substring(change.position.end);
+      selectedContent = before + change.revised + after;
+    });
+
+    // 替換編輯器中的文字
+    newContent =
+      content.substring(0, selectionStart) +
+      selectedContent +
+      content.substring(selectionEnd);
+
+    setContent(newContent);
+    setShowContextMenu(false);
+
+    // 將游標移到替換文字的後面
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const newPosition = selectionStart + selectedContent.length;
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newPosition, newPosition);
+      }
+    }, 0);
   };
 
   // Retry Expansion Hints
@@ -237,7 +335,7 @@ export function Editor({
   return (
     <>
       <div className="w-[670px] h-[95%] bg-white my-auto flex flex-col rounded-[10px] border border-(--color-border) overflow-hidden">
-        <div className="px-[40px] py-[20px] flex items-center justify-between h-[77px] shrink-0">
+        <div className="px-[40px] py-[20px] flex items-center justify-between h-[70px] shrink-0">
           <input
             type="text"
             value={title}
@@ -316,7 +414,35 @@ export function Editor({
             </>
           )}
 
-          {menuStage === "paraphrase" && <ParaphrasePanel />}
+          {menuStage === "paraphrase-style" && (
+            <ParaphraseStylePanel
+              onSelectStyle={handleSelectStyle}
+              textareaRef={textareaRef}
+              selectionStart={selectionStart}
+              selectionEnd={selectionEnd}
+            />
+          )}
+
+          {menuStage === "paraphrase-result" && (
+            <>
+              {isLoadingParaphrase ? (
+                <div className="bg-white border border-(--color-border) rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] p-[20px]">
+                  <p className="text-(--color-text-secondary) text-[14px]">
+                    Loading paraphrase...
+                  </p>
+                </div>
+              ) : paraphraseResult ? (
+                <ParaphrasePanel
+                  result={paraphraseResult}
+                  onRetry={handleRetryParaphrase}
+                  onReplace={handleReplaceParaphrase}
+                  textareaRef={textareaRef}
+                  selectionStart={selectionStart}
+                  selectionEnd={selectionEnd}
+                />
+              ) : null}
+            </>
+          )}
         </div>
       )}
     </>

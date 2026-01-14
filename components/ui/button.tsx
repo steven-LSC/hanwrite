@@ -40,7 +40,9 @@ export function Button({
       onClick={onClick}
       className={`${baseStyles} ${variantStyles[variant]} ${iconOnlyStyles} ${className}`}
     >
-      {icon && <span className="material-symbols-rounded">{icon}</span>}
+      {icon && (
+        <span className="material-symbols-rounded text-[20px]">{icon}</span>
+      )}
       {children && (
         <span className="font-medium text-[14px] leading-normal">
           {children}

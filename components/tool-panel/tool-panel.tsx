@@ -124,7 +124,7 @@ export function ToolPanel({}: ToolPanelProps) {
     <div className="w-[498px] h-[95%] my-auto flex flex-col">
       <div className="bg-white border border-(--color-border) rounded-[10px] flex flex-col overflow-hidden h-full">
         {/* 頂部工具欄（固定高度） */}
-        <div className="px-[20px] py-[20px] border-b border-(--color-border) shrink-0 h-[60px] flex items-center">
+        <div className="px-[20px] py-[20px] border-b border-(--color-border) shrink-0 h-[70px] flex items-center">
           <div className="flex items-center justify-between w-full">
             <div className="relative" ref={dropdownRef}>
               {/* 工具選擇按鈕 */}
