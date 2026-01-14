@@ -32,3 +32,17 @@ export interface RecentWriting {
   id: string;
   title: string;
 }
+
+// Expansion Hint 相關型別
+export interface ExpansionHint {
+  explanation: string; // 建議說明（英文）
+  example: string; // 韓文例句
+}
+
+// Paraphrase 相關型別（之後使用）
+export interface Paraphrase {
+  text: string;
+}
+
+// Context Menu 狀態
+export type ContextMenuStage = "initial" | "expansion-hint" | "paraphrase";

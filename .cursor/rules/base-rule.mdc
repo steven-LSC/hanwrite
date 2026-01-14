@@ -18,6 +18,7 @@ alwaysApply: true
 - 程式碼以「人好讀」為優先，而不是炫技
 - 能簡單就不要複雜（You Aren’t Gonna Need It / YAGNI）
 - 使用 best practice 的命名規則，意思要表達明確，可以使用適當並且通用的縮寫
+- 遵循 DRY (Don't Repeat Yourself) 原則
 
 ---
 
@@ -38,6 +39,7 @@ alwaysApply: true
 - 樣式邏輯與業務邏輯分離
 - class 太長時，優先改善結構，而不是硬塞
 - 盡量使用簡寫，避免重複的描述，例如使用：rounded-t-[10px] 而不是 rounded-tr-[10px] rounded-tl-[10px]
+- 避免使用不必要的描述
 
 ---
 
