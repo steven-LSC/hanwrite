@@ -22,7 +22,7 @@ import {
   ParaphraseResult,
   ParaphraseStyle,
 } from "@/lib/types";
-import { useFocus } from "@/app/writings/focus-context";
+import { useFocus } from "@/app/(main)/focus-context";
 
 interface EditorProps {
   initialTitle?: string;

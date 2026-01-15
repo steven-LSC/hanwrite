@@ -6,8 +6,8 @@ import { Editor, EditorRef } from "@/components/editor/editor";
 import { UnsavedChangesModal } from "@/components/editor/unsaved-changes-modal";
 import { getWriting, createWriting, updateWriting, saveToolPanelState } from "@/lib/data/writings";
 import { Writing } from "@/lib/types";
-import { useFocus } from "../focus-context";
-import { useUnsaved } from "../unsaved-context";
+import { useFocus } from "../../focus-context";
+import { useUnsaved } from "../../unsaved-context";
 
 export default function WritingPage() {
   const params = useParams();

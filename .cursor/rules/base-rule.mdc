@@ -40,6 +40,7 @@ alwaysApply: true
 - class 太長時，優先改善結構，而不是硬塞
 - 盡量使用簡寫，避免重複的描述，例如使用：rounded-t-[10px] 而不是 rounded-tr-[10px] rounded-tl-[10px]
 - 避免使用不必要的描述
+- 使用 Tailwind 4 的語法
 
 ---
 

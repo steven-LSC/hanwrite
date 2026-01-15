@@ -7,29 +7,34 @@ import React, {
   ReactNode,
   useRef,
 } from "react";
-import { SidebarRef } from "@/components/sidebar";
 import { ToolPanelRef } from "@/components/tool-panel/tool-panel";
+
+export interface SidebarRef {
+  refreshRecentWritings: () => Promise<void>;
+}
 
 interface FocusContextType {
   isFocusMode: boolean;
   toggleFocus: () => void;
-  sidebarRef: React.RefObject<SidebarRef>;
-  toolPanelRef: React.RefObject<ToolPanelRef>;
+  sidebarRef: React.RefObject<SidebarRef | null>;
+  toolPanelRef: React.RefObject<ToolPanelRef | null>;
 }
 
 const FocusContext = createContext<FocusContextType | undefined>(undefined);
 
 export function FocusProvider({ children }: { children: ReactNode }) {
   const [isFocusMode, setIsFocusMode] = useState(false);
-  const sidebarRef = useRef<SidebarRef>(null);
-  const toolPanelRef = useRef<ToolPanelRef>(null);
+  const sidebarRef = useRef<SidebarRef | null>(null);
+  const toolPanelRef = useRef<ToolPanelRef | null>(null);
 
   const toggleFocus = () => {
     setIsFocusMode((prev) => !prev);
   };
 
   return (
-    <FocusContext.Provider value={{ isFocusMode, toggleFocus, sidebarRef, toolPanelRef }}>
+    <FocusContext.Provider
+      value={{ isFocusMode, toggleFocus, sidebarRef, toolPanelRef }}
+    >
       {children}
     </FocusContext.Provider>
   );

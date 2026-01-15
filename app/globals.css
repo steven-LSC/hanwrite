@@ -60,3 +60,29 @@ body {
   line-height: 1;
   vertical-align: middle;
 }
+
+.react-flow__node {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node.selected,
+.react-flow__node-selected {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.react-flow__node:focus,
+.react-flow__node:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__handle {
+  width: 8px !important;
+  height: 8px !important;
+}
