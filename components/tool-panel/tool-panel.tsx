@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import { useParams } from "next/navigation";
 import { ExpressionBuilder } from "./expression-builder";
 import { ReferencePanel } from "./reference-panel";
@@ -42,8 +48,7 @@ interface ToolPanelProps {
   // 未來可以擴展其他工具
 }
 
-export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(
-  ({}, ref) => {
+export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
   const params = useParams();
   const writingId = params.writingId as string | undefined;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -56,9 +61,9 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(
     "expression-builder": null,
   });
   // 追蹤當前綁定的 writingId
-  const [currentWritingId, setCurrentWritingId] = useState<
-    string | undefined
-  >(undefined);
+  const [currentWritingId, setCurrentWritingId] = useState<string | undefined>(
+    undefined
+  );
   // Reverse Outlining 的 ref
   const reverseOutliningRef = useRef<ReverseOutliningHandle>(null);
 
@@ -302,7 +307,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(
                       </span>
                     </div>
                     <span className="material-symbols-rounded text-[20px] text-(--color-text-secondary)">
-                      expand_circle_down
+                      {isDropdownOpen ? "expand_less" : "expand_more"}
                     </span>
                   </button>
 
@@ -364,7 +369,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(
                     </span>
                   </div>
                   <span className="material-symbols-rounded text-[20px] text-(--color-text-secondary)">
-                    expand_circle_down
+                    {isDropdownOpen ? "expand_less" : "expand_more"}
                   </span>
                 </button>
 
@@ -427,7 +432,6 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(
       </div>
     </div>
   );
-  }
-);
+});
 
 ToolPanel.displayName = "ToolPanel";

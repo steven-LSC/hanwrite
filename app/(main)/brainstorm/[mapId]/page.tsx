@@ -10,36 +10,30 @@ import {
 } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  Background,
-  Controls,
-  type Edge,
-  Handle,
-  MarkerType,
   type Node,
+  type Edge,
   type NodeProps,
-  Position,
   ReactFlow,
   ReactFlowProvider,
-  useEdgesState,
   useNodesState,
+  useEdgesState,
   useReactFlow,
-  useUpdateNodeInternals,
+  Handle,
+  Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import {
   findRootNode,
-  findClosestParentNode,
-  calculateNodePosition,
-  buildTreeStructure,
-  recenterMindmap,
+  calculateTreePositions,
+  findClosestParentForInsert,
+  findInsertIndex,
 } from "@/lib/mindmap-utils";
 
 type MindmapData = {
   id: string;
   title: string;
   nodes: Node[];
-  edges: Edge[];
 };
 
 const DEFAULT_MAP_ID = "new";
@@ -52,31 +46,17 @@ const MOCK_MINDMAPS: Record<string, MindmapData> = {
       {
         id: "root",
         position: { x: 0, y: 0 },
-        data: { label: "Main Topic" },
+        data: { label: "Main Topic", parentId: null },
       },
       {
         id: "idea-1",
-        position: { x: 200, y: -100 },
-        data: { label: "Idea 1" },
+        position: { x: 200, y: -25 },
+        data: { label: "Idea 1", parentId: "root", direction: "right" },
       },
       {
         id: "idea-2",
-        position: { x: 200, y: 100 },
-        data: { label: "Idea 2" },
-      },
-    ],
-    edges: [
-      {
-        id: "edge-root-1",
-        source: "root",
-        target: "idea-1",
-        type: "smoothstep",
-      },
-      {
-        id: "edge-root-2",
-        source: "root",
-        target: "idea-2",
-        type: "smoothstep",
+        position: { x: 200, y: 25 },
+        data: { label: "Idea 2", parentId: "root", direction: "right" },
       },
     ],
   },
@@ -87,42 +67,22 @@ const MOCK_MINDMAPS: Record<string, MindmapData> = {
       {
         id: "root-1",
         position: { x: 0, y: 0 },
-        data: { label: "Study Plan" },
+        data: { label: "Study Plan", parentId: null },
       },
       {
         id: "focus-1",
-        position: { x: 220, y: -140 },
-        data: { label: "Vocabulary" },
+        position: { x: 200, y: -50 },
+        data: { label: "Vocabulary", parentId: "root-1", direction: "right" },
       },
       {
         id: "focus-2",
-        position: { x: 220, y: 0 },
-        data: { label: "Grammar" },
+        position: { x: 200, y: 0 },
+        data: { label: "Grammar", parentId: "root-1", direction: "right" },
       },
       {
         id: "focus-3",
-        position: { x: 220, y: 140 },
-        data: { label: "Writing" },
-      },
-    ],
-    edges: [
-      {
-        id: "edge-1-1",
-        source: "root-1",
-        target: "focus-1",
-        type: "smoothstep",
-      },
-      {
-        id: "edge-1-2",
-        source: "root-1",
-        target: "focus-2",
-        type: "smoothstep",
-      },
-      {
-        id: "edge-1-3",
-        source: "root-1",
-        target: "focus-3",
-        type: "smoothstep",
+        position: { x: 200, y: 50 },
+        data: { label: "Writing", parentId: "root-1", direction: "right" },
       },
     ],
   },
@@ -132,11 +92,25 @@ const MOCK_MINDMAPS: Record<string, MindmapData> = {
     nodes: [
       {
         id: "root-2",
-        position: { x: 0, y: 0 },
-        data: { label: "Essay Outline" },
+        position: { x: 400, y: 300 },
+        data: { label: "Essay Outline", parentId: null },
+      },
+      {
+        id: "left-1",
+        position: { x: 200, y: 300 },
+        data: { label: "Left 1", parentId: "root-2", direction: "left" },
+      },
+      {
+        id: "right-1",
+        position: { x: 600, y: 275 },
+        data: { label: "Right 1", parentId: "root-2", direction: "right" },
+      },
+      {
+        id: "right-2",
+        position: { x: 600, y: 325 },
+        data: { label: "Right 2", parentId: "root-2", direction: "right" },
       },
     ],
-    edges: [],
   },
 };
 
@@ -153,42 +127,54 @@ const fetchMindmap = async (mapId: string): Promise<MindmapData> => {
   });
 };
 
+// 根據 nodes 生成連接線
+const generateEdges = (nodes: Node[]): Edge[] => {
+  const edges: Edge[] = [];
+
+  nodes.forEach((node) => {
+    const parentId = node.data.parentId as string | null | undefined;
+    if (parentId && typeof parentId === "string") {
+      const direction = node.data.direction as "left" | "right" | undefined;
+      
+      // 根據子節點的方向決定連接點
+      // 左側子節點：父節點左側 -> 子節點右側
+      // 右側子節點：父節點右側 -> 子節點左側
+      const sourceHandle = direction === "left" ? "left" : "right";
+      const targetHandle = direction === "left" ? "right" : "left";
+      
+      edges.push({
+        id: `edge-${parentId}-${node.id}`,
+        source: parentId,
+        target: node.id,
+        sourceHandle: sourceHandle,
+        targetHandle: targetHandle,
+        type: "smoothstep",
+        style: { stroke: "#94a3b8", strokeWidth: 2 },
+        animated: false,
+      });
+    }
+  });
+
+  return edges;
+};
+
+// 找出節點的所有子孫節點（遞迴）
+const findAllDescendants = (nodeId: string, nodes: Node[]): string[] => {
+  const descendants: string[] = [nodeId];
+  const children = nodes.filter((n) => n.data.parentId === nodeId);
+
+  children.forEach((child) => {
+    descendants.push(...findAllDescendants(child.id, nodes));
+  });
+
+  return descendants;
+};
+
 // 自訂 Node Component
 function CustomNode({ data, selected, id }: NodeProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(data.label as string);
-  const [isHovered, setIsHovered] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { getEdges } = useReactFlow();
-  const updateNodeInternals = useUpdateNodeInternals();
-
-  // 檢查是否有連線
-  const edges = getEdges();
-  const hasIncomingEdgeLeft = edges.some(
-    (edge) => edge.target === id && edge.targetHandle === "target-left"
-  );
-  const hasIncomingEdgeRight = edges.some(
-    (edge) => edge.target === id && edge.targetHandle === "target-right"
-  );
-  const hasOutgoingEdgeLeft = edges.some(
-    (edge) => edge.source === id && edge.sourceHandle === "source-left"
-  );
-  const hasOutgoingEdgeRight = edges.some(
-    (edge) => edge.source === id && edge.sourceHandle === "source-right"
-  );
-
-  // 當 Handle 顯示狀態改變時，更新 node internals
-  useEffect(() => {
-    updateNodeInternals(id);
-  }, [
-    id,
-    hasIncomingEdgeLeft,
-    hasIncomingEdgeRight,
-    hasOutgoingEdgeLeft,
-    hasOutgoingEdgeRight,
-    isHovered,
-    updateNodeInternals,
-  ]);
 
   // 如果是新 node，自動進入編輯模式
   useEffect(() => {
@@ -197,8 +183,25 @@ function CustomNode({ data, selected, id }: NodeProps) {
     }
   }, [data.isNew]);
 
-  const handleDoubleClick = () => {
+  const handleTextDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setIsEditing(true);
+  };
+
+  const handleNodeDoubleClick = (e: React.MouseEvent) => {
+    // 如果雙擊的是文字區域（textarea 或顯示文字的 div），不處理（由 handleTextDoubleClick 處理）
+    const target = e.target as HTMLElement;
+    if (
+      target.tagName === "TEXTAREA" ||
+      (target.tagName === "DIV" && target.textContent !== null)
+    ) {
+      return;
+    }
+
+    // 雙擊節點其他區域，新增子節點
+    if (data.onAddChild && typeof data.onAddChild === "function") {
+      data.onAddChild(id);
+    }
   };
 
   const handleBlur = () => {
@@ -218,11 +221,9 @@ function CustomNode({ data, selected, id }: NodeProps) {
   // 聚焦邏輯：當進入編輯模式時自動聚焦
   useEffect(() => {
     if (isEditing && textareaRef.current) {
-      // 使用 requestAnimationFrame 確保 DOM 已經渲染
       requestAnimationFrame(() => {
         if (textareaRef.current) {
           textareaRef.current.focus();
-          // 如果是新 node，游標在開頭；否則在末尾
           if (data.isNew) {
             textareaRef.current.setSelectionRange(0, 0);
           } else {
@@ -238,111 +239,65 @@ function CustomNode({ data, selected, id }: NodeProps) {
     setLabel(data.label as string);
   }, [data.label]);
 
-  // 調整 textarea 高度以適應內容
-  useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      const scrollHeight = textareaRef.current.scrollHeight;
-      const minHeight = parseFloat(
-        getComputedStyle(textareaRef.current).lineHeight
-      );
-      textareaRef.current.style.height = `${Math.max(
-        scrollHeight,
-        minHeight
-      )}px`;
-    }
-  }, [label, isEditing]);
-
-  // 處理 Handle 點擊，防止觸發 node 的雙擊事件
-  const handleHandleMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
   return (
     <div
-      onDoubleClick={handleDoubleClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={`px-4 py-2 rounded-lg border border-(--color-border) transition-all cursor-pointer outline-none focus:outline-none focus-visible:outline-none min-h-[1.5em] relative ${
+      onDoubleClick={handleNodeDoubleClick}
+      className={`px-4 rounded-lg border transition-all cursor-pointer outline-none focus:outline-none focus-visible:outline-none relative h-[40px] w-[200px] flex items-center justify-center ${
         selected
-          ? "bg-blue-50"
+          ? "bg-blue-50 border-blue-300"
           : "bg-white border-gray-300 hover:border-gray-400"
       }`}
     >
-      {/* 左邊 target Handle：有連線時顯示，或 hover 且沒有連線時顯示 */}
-      {(hasIncomingEdgeLeft || (isHovered && !hasIncomingEdgeLeft)) && (
-        <Handle
-          id="target-left"
-          type="target"
-          position={Position.Left}
-          onMouseDown={handleHandleMouseDown}
-          className={hasIncomingEdgeLeft ? "" : "opacity-50"}
-          style={{
-            pointerEvents: "all",
-            zIndex: 10,
-          }}
-        />
-      )}
-      {/* 右邊 target Handle：有連線時顯示，或 hover 且沒有連線時顯示 */}
-      {(hasIncomingEdgeRight || (isHovered && !hasIncomingEdgeRight)) && (
-        <Handle
-          id="target-right"
-          type="target"
-          position={Position.Right}
-          onMouseDown={handleHandleMouseDown}
-          className={hasIncomingEdgeRight ? "" : "opacity-50"}
-          style={{
-            pointerEvents: "all",
-            zIndex: 10,
-          }}
-        />
-      )}
-      {/* 左邊 source Handle：有連線時顯示，或 hover 且沒有連線時顯示 */}
-      {(hasOutgoingEdgeLeft || (isHovered && !hasOutgoingEdgeLeft)) && (
-        <Handle
-          id="source-left"
-          type="source"
-          position={Position.Left}
-          onMouseDown={handleHandleMouseDown}
-          className={hasOutgoingEdgeLeft ? "" : "opacity-50"}
-          style={{
-            pointerEvents: "all",
-            zIndex: 10,
-          }}
-        />
-      )}
+      {/* Handle 用於連接線 */}
+      <Handle
+        id="left"
+        type="source"
+        position={Position.Left}
+        style={{ opacity: 0 }}
+      />
+      <Handle
+        id="left"
+        type="target"
+        position={Position.Left}
+        style={{ opacity: 0 }}
+      />
+      <Handle
+        id="right"
+        type="source"
+        position={Position.Right}
+        style={{ opacity: 0 }}
+      />
+      <Handle
+        id="right"
+        type="target"
+        position={Position.Right}
+        style={{ opacity: 0 }}
+      />
+      
       {isEditing ? (
         <textarea
           ref={textareaRef}
           value={label}
-          onChange={(e) => setLabel(e.target.value)}
+          onChange={(e) => {
+            setLabel(e.target.value);
+          }}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="w-full max-w-[200px] bg-transparent outline-none text-[#475569] text-[14px] font-medium text-center resize-none overflow-hidden min-h-[1.5em]"
-          rows={1}
+          onDoubleClick={handleTextDoubleClick}
+          className="bg-transparent outline-none text-[#475569] text-[14px] font-medium text-center resize-none w-full overflow-hidden whitespace-nowrap flex items-center"
           style={{
-            lineHeight: "1.5",
+            lineHeight: "40px",
+            height: "40px",
             pointerEvents: "auto",
           }}
         />
       ) : (
-        <div className="text-[#475569] text-[14px] font-medium text-center wrap-break-word max-w-[200px] min-h-[1.5em]">
+        <div
+          onDoubleClick={handleTextDoubleClick}
+          className="text-[#475569] text-[14px] font-medium text-center h-full flex items-center justify-center whitespace-nowrap overflow-hidden text-ellipsis w-full"
+        >
           {label || "\u00A0"}
         </div>
-      )}
-      {/* 右邊 source Handle：有連線時顯示，或 hover 且沒有連線時顯示 */}
-      {(hasOutgoingEdgeRight || (isHovered && !hasOutgoingEdgeRight)) && (
-        <Handle
-          id="source-right"
-          type="source"
-          position={Position.Right}
-          onMouseDown={handleHandleMouseDown}
-          className={hasOutgoingEdgeRight ? "" : "opacity-50"}
-          style={{
-            pointerEvents: "all",
-            zIndex: 10,
-          }}
-        />
       )}
     </div>
   );
@@ -368,37 +323,162 @@ function BrainstormPageContent() {
   // 註冊自訂 node types
   const nodeTypes = useMemo(() => ({ default: CustomNode }), []);
 
-  // Edge 預設樣式設定
-  const defaultEdgeOptions = useMemo(
-    () => ({
-      type: "smoothstep" as const,
-      style: { strokeWidth: 1.5 },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        width: 15,
-        height: 15,
-      },
-    }),
-    []
+  // 當 nodes 變更時，自動更新 edges
+  useEffect(() => {
+    setEdges(generateEdges(nodes));
+  }, [nodes, setEdges]);
+
+  const handleNodesChange = useCallback(
+    (changes) => {
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7243/ingest/4df6d733-e4bc-48a2-8417-81862552ed0c",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "app/(main)/brainstorm/[mapId]/page.tsx:279",
+            message: "onNodesChange",
+            data: {
+              changeCount: changes.length,
+              types: changes.map((c) => c.type),
+              positionChanges: changes
+                .filter((c) => c.type === "position")
+                .map((c) => ({
+                  id: c.id,
+                  pos: c.position,
+                  dragging: c.dragging,
+                })),
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "pre-fix",
+            hypothesisId: "B",
+          }),
+        }
+      ).catch(() => {});
+      // #endregion agent log
+      onNodesChange(changes);
+    },
+    [onNodesChange]
   );
+
+  useEffect(() => {
+    // #region agent log
+    fetch("http://127.0.0.1:7243/ingest/4df6d733-e4bc-48a2-8417-81862552ed0c", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "app/(main)/brainstorm/[mapId]/page.tsx:289",
+        message: "nodes state",
+        data: {
+          count: nodes.length,
+          tail: nodes.slice(-3).map((n) => ({
+            id: n.id,
+            parentId: n.data.parentId,
+            dir: n.data.direction,
+            pos: n.position,
+          })),
+        },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "pre-fix",
+        hypothesisId: "D",
+      }),
+    }).catch(() => {});
+    // #endregion agent log
+  }, [nodes]);
 
   // 處理節點 label 變更
   const handleLabelChange = useCallback(
     (nodeId: string, newLabel: string) => {
-      setNodes((nds) =>
-        nds.map((node) =>
+      setNodes((nds) => {
+        const updated = nds.map((node) =>
           node.id === nodeId
             ? {
                 ...node,
                 data: {
                   ...node.data,
                   label: newLabel,
-                  isNew: false, // 移除 isNew 標記
+                  isNew: false,
                 },
               }
             : node
-        )
-      );
+        );
+        // 重新計算位置
+        const root = findRootNode(updated);
+        if (root) {
+          return calculateTreePositions(updated, root.id);
+        }
+        return updated;
+      });
+    },
+    [setNodes]
+  );
+
+  // 處理在節點下新增子節點
+  const handleAddChild = useCallback(
+    (parentId: string) => {
+      setNodes((nds) => {
+        const parentNode = nds.find((n) => n.id === parentId);
+        if (!parentNode) return nds;
+
+        // 繼承父節點的 direction，如果父節點沒有 direction（是 root），預設向右
+        const direction =
+          (parentNode.data.direction as "left" | "right") || "right";
+
+        const newNodeId = `node-${Date.now()}`;
+        const newNode: Node = {
+          id: newNodeId,
+          position: { x: 0, y: 0 }, // 位置會由 calculateTreePositions 計算
+          data: {
+            label: "",
+            parentId: parentId,
+            direction: direction,
+            isNew: true,
+            onLabelChange: (newLabel: string) =>
+              handleLabelChange(newNodeId, newLabel),
+            onAddChild: handleAddChild,
+          },
+        };
+
+        const updated = [...nds, newNode];
+        const root = findRootNode(updated);
+        if (root) {
+          return calculateTreePositions(updated, root.id);
+        }
+        return updated;
+      });
+    },
+    [setNodes, handleLabelChange]
+  );
+
+  // 處理刪除節點（包含所有子節點）
+  const handleDeleteNode = useCallback(
+    (nodeId: string) => {
+      setNodes((nds) => {
+        // 找出要刪除的節點
+        const nodeToDelete = nds.find((n) => n.id === nodeId);
+        if (!nodeToDelete) return nds;
+
+        // 不允許刪除 root 節點
+        if (!nodeToDelete.data.parentId) {
+          return nds;
+        }
+
+        // 找出所有需要刪除的節點（包括子孫節點）
+        const nodesToDelete = findAllDescendants(nodeId, nds);
+
+        // 過濾掉要刪除的節點
+        const updated = nds.filter((node) => !nodesToDelete.includes(node.id));
+
+        // 重新計算位置
+        const root = findRootNode(updated);
+        if (root) {
+          return calculateTreePositions(updated, root.id);
+        }
+        return updated;
+      });
     },
     [setNodes]
   );
@@ -417,77 +497,99 @@ function BrainstormPageContent() {
         const newNodeId = `root-${Date.now()}`;
         const newNode: Node = {
           id: newNodeId,
-          position: { x: 0, y: 0 }, // root 節點在原點
+          position: { x: 0, y: 0 },
           data: {
             label: "",
+            parentId: null,
             isNew: true,
             onLabelChange: (newLabel: string) =>
               handleLabelChange(newNodeId, newLabel),
+            onAddChild: handleAddChild,
           },
         };
         setNodes([newNode]);
         return;
       }
 
-      // 1. 找出根節點
-      const rootNode = findRootNode(nodes, edges);
+      // 找出最近的父節點和方向
+      const result = findClosestParentForInsert(nodes, position);
+      if (!result) return;
 
-      // 2. 判斷左右側
-      const isRightSide = position.x > rootNode.position.x;
+      const { parent: parentNode, direction } = result;
 
-      // 3. 找出最近的父節點
-      const parentNode = findClosestParentNode(
-        nodes,
-        edges,
-        position,
-        rootNode,
-        isRightSide
+      // 找出該父節點的所有子節點（相同 direction）
+      const childrenNodes = nodes.filter(
+        (node) =>
+          node.data.parentId === parentNode.id &&
+          node.data.direction === direction
       );
 
-      // 4. 計算新節點位置（基於 tree 結構）
-      const treeStructure = buildTreeStructure(nodes, edges, rootNode.id);
-      const newPosition = calculateNodePosition(
-        treeStructure,
-        parentNode,
-        position,
-        isRightSide,
-        rootNode
-      );
+      // 找出應該插入的索引位置
+      const insertIndex = findInsertIndex(childrenNodes, position.y);
 
-      // 5. 生成新的 node ID（使用時間戳確保唯一性）
-      const newNodeId = `node-${Date.now()}`;
-
-      // 6. 創建新 node
-      const newNode: Node = {
-        id: newNodeId,
-        position: newPosition,
-        data: {
-          label: "",
-          isNew: true, // 標記為新 node，讓它自動進入編輯模式
-          onLabelChange: (newLabel: string) =>
-            handleLabelChange(newNodeId, newLabel),
-        },
-      };
-
-      // 7. 建立連線（根據左右側決定 Handle）
-      const newEdge: Edge = {
-        id: `edge-${parentNode.id}-${newNodeId}-${Date.now()}`,
-        source: parentNode.id,
-        target: newNodeId,
-        sourceHandle: isRightSide ? "source-right" : "source-left",
-        targetHandle: isRightSide ? "target-left" : "target-right",
-        type: "smoothstep",
-      };
-
-      // 8. 更新 nodes 和 edges
       setNodes((nds) => {
-        const updatedNodes = [...nds, newNode];
-        // 重新計算位置並置中
-        return recenterMindmap(updatedNodes, rootNode.id);
+        // #region agent log
+        fetch(
+          "http://127.0.0.1:7243/ingest/4df6d733-e4bc-48a2-8417-81862552ed0c",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "app/(main)/brainstorm/[mapId]/page.tsx:421",
+              message: "paneDoubleClick add node",
+              data: {
+                clickPos: position,
+                parentId: parentNode.id,
+                direction,
+                childrenCount: childrenNodes.length,
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "pre-fix",
+              hypothesisId: "C",
+            }),
+          }
+        ).catch(() => {});
+        // #endregion agent log
+        const newNodeId = `node-${Date.now()}`;
+        const newNode: Node = {
+          id: newNodeId,
+          position: { x: 0, y: 0 }, // 位置會由 calculateTreePositions 計算
+          data: {
+            label: "",
+            parentId: parentNode.id,
+            direction: direction,
+            isNew: true,
+            onLabelChange: (newLabel: string) =>
+              handleLabelChange(newNodeId, newLabel),
+            onAddChild: handleAddChild,
+          },
+        };
+
+        // 在指定位置插入新節點
+        // 先找出所有非該父節點且非相同方向的子節點
+        const nonChildren = nds.filter(
+          (node) =>
+            node.data.parentId !== parentNode.id ||
+            node.data.direction !== direction
+        );
+        // 找出所有子節點，按 Y 軸排序
+        const sortedChildren = [...childrenNodes].sort(
+          (a, b) => a.position.y - b.position.y
+        );
+        // 在指定索引位置插入新節點
+        sortedChildren.splice(insertIndex, 0, newNode);
+        // 合併節點
+        const updated = [...nonChildren, ...sortedChildren];
+
+        const root = findRootNode(updated);
+        if (root) {
+          return calculateTreePositions(updated, root.id);
+        }
+        return updated;
       });
-      setEdges((eds) => [...eds, newEdge]);
     },
-    [screenToFlowPosition, nodes, edges, handleLabelChange, setNodes, setEdges]
+    [screenToFlowPosition, nodes, handleLabelChange, handleAddChild, setNodes]
   );
 
   // 使用 onPaneClick 配合 timer 來檢測雙擊
@@ -528,17 +630,50 @@ function BrainstormPageContent() {
     setIsLoading(true);
     fetchMindmap(mapId)
       .then((data) => {
-        // 將 nodes 資料加入 onLabelChange callback
+        // 將 nodes 資料加入 callback，並重新計算位置
         const nodesWithCallback = data.nodes.map((node) => ({
           ...node,
           data: {
             ...node.data,
             onLabelChange: (newLabel: string) =>
               handleLabelChange(node.id, newLabel),
+            onAddChild: handleAddChild,
           },
         }));
-        setNodes(nodesWithCallback);
-        setEdges(data.edges);
+
+        // 重新計算位置
+        const root = findRootNode(nodesWithCallback);
+        const positionedNodes = root
+          ? calculateTreePositions(nodesWithCallback, root.id)
+          : nodesWithCallback;
+        // #region agent log
+        fetch(
+          "http://127.0.0.1:7243/ingest/4df6d733-e4bc-48a2-8417-81862552ed0c",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "app/(main)/brainstorm/[mapId]/page.tsx:520",
+              message: "loaded positionedNodes",
+              data: {
+                mapId: data.id,
+                exampleNodes: positionedNodes.slice(0, 3).map((n) => ({
+                  id: n.id,
+                  pos: n.position,
+                  dir: n.data.direction,
+                  parentId: n.data.parentId,
+                })),
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "pre-fix",
+              hypothesisId: "A",
+            }),
+          }
+        ).catch(() => {});
+        // #endregion agent log
+
+        setNodes(positionedNodes);
         setMapList((prev) => {
           const exists = prev.find((map) => map.id === data.id);
           if (!exists) {
@@ -564,9 +699,9 @@ function BrainstormPageContent() {
     loadedMapId,
     mapList,
     router,
-    setEdges,
     setNodes,
     handleLabelChange,
+    handleAddChild,
   ]);
 
   const handleTitleChange = (nextTitle: string) => {
@@ -586,99 +721,6 @@ function BrainstormPageContent() {
       router.push(`/brainstorm/${nextId}`);
     });
   };
-
-  // 處理連線建立
-  const handleConnect = useCallback(
-    (params: {
-      source: string;
-      target: string;
-      sourceHandle?: string | null;
-      targetHandle?: string | null;
-    }) => {
-      // 驗證連線：確保是正確的 Handle 配對
-      const validPairs = [
-        { source: "source-right", target: "target-left" }, // 右側連線
-        { source: "source-left", target: "target-right" }, // 左側連線
-      ];
-
-      const isValidPair = validPairs.some(
-        (pair) =>
-          params.sourceHandle === pair.source &&
-          params.targetHandle === pair.target
-      );
-
-      if (!isValidPair) {
-        return;
-      }
-
-      // 防止自己連自己
-      if (params.source === params.target) {
-        return;
-      }
-
-      // 檢查是否已經存在相同的連線
-      const existingEdge = edges.find(
-        (edge) => edge.source === params.source && edge.target === params.target
-      );
-      if (existingEdge) {
-        return;
-      }
-
-      const newEdge: Edge = {
-        id: `edge-${params.source}-${params.target}-${Date.now()}`,
-        source: params.source,
-        target: params.target,
-        sourceHandle: params.sourceHandle,
-        targetHandle: params.targetHandle,
-        type: "smoothstep",
-      };
-      setEdges((eds) => [...eds, newEdge]);
-    },
-    [setEdges, edges]
-  );
-
-  // 連線驗證函數：確保連線方向正確
-  const isValidConnection = useCallback(
-    (connection: {
-      source: string;
-      target: string;
-      sourceHandle?: string | null;
-      targetHandle?: string | null;
-    }) => {
-      // 允許的 Handle 配對
-      const validPairs = [
-        { source: "source-right", target: "target-left" }, // 右側連線
-        { source: "source-left", target: "target-right" }, // 左側連線
-      ];
-
-      const isValidPair = validPairs.some(
-        (pair) =>
-          connection.sourceHandle === pair.source &&
-          connection.targetHandle === pair.target
-      );
-
-      if (!isValidPair) {
-        return false;
-      }
-
-      // 防止自己連自己
-      if (connection.source === connection.target) {
-        return false;
-      }
-
-      // 防止重複連線
-      const exists = edges.some(
-        (edge) =>
-          edge.source === connection.source && edge.target === connection.target
-      );
-      if (exists) {
-        return false;
-      }
-
-      return true;
-    },
-    [edges]
-  );
 
   return (
     <div className="w-[1200px] h-[95%] bg-white my-auto rounded-[10px] border border-[#e2e8f0] overflow-hidden relative">
@@ -762,22 +804,33 @@ function BrainstormPageContent() {
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
+        onNodesChange={handleNodesChange}
+        onEdgesChange={(changes) => {
+          // 過濾掉刪除 edge 的操作，只允許其他操作
+          const filteredChanges = changes.filter((change) => change.type !== 'remove');
+          onEdgesChange(filteredChanges);
+        }}
+        onNodesDelete={(deleted) => {
+          // 當用戶按下 Delete 鍵時，刪除選中的節點
+          deleted.forEach((node) => handleDeleteNode(node.id));
+        }}
         onPaneClick={handlePaneClick}
-        onConnect={handleConnect}
-        isValidConnection={isValidConnection}
         nodeTypes={nodeTypes}
-        defaultEdgeOptions={defaultEdgeOptions}
-        nodesConnectable={true}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        nodesFocusable={true}
+        edgesFocusable={false}
+        elementsSelectable={true}
+        selectNodesOnDrag={false}
+        deleteKeyCode={["Delete", "Backspace"]}
         proOptions={{ hideAttribution: true }}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
         zoomOnDoubleClick={false}
-      >
-        <Background gap={16} color="#e2e8f0" />
-        <Controls />
-      </ReactFlow>
+        defaultEdgeOptions={{
+          type: "smoothstep",
+          animated: false,
+          style: { stroke: "#94a3b8", strokeWidth: 2 },
+        }}
+      />
     </div>
   );
 }
