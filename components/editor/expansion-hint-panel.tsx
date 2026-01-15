@@ -7,7 +7,7 @@ interface ExpansionHintPanelProps {
   hints: ExpansionHint[];
   selectedIndex: number | null;
   onSelectHint: (index: number) => void;
-  onRetry: () => void;
+  onDiscard: () => void;
   onInsert: () => void;
 }
 
@@ -15,7 +15,7 @@ export function ExpansionHintPanel({
   hints,
   selectedIndex,
   onSelectHint,
-  onRetry,
+  onDiscard,
   onInsert,
 }: ExpansionHintPanelProps) {
   return (
@@ -62,16 +62,16 @@ export function ExpansionHintPanel({
 
       {/* 底部按鈕 */}
       <div className="flex gap-[10px] justify-end shrink-0">
-        {/* Retry 按鈕 */}
+        {/* Discard 按鈕 */}
         <button
-          onClick={onRetry}
+          onClick={onDiscard}
           className="bg-(--color-bg-secondary) flex items-center gap-[5px] px-[10px] py-[5px] rounded-[5px] hover:brightness-95 transition-colors duration-200"
         >
           <span className="material-symbols-rounded text-[20px] text-(--color-text-secondary)">
-            refresh
+            delete
           </span>
           <span className="font-medium text-[14px] text-(--color-text-secondary)">
-            Retry
+            Discard
           </span>
         </button>
 

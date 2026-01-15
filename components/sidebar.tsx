@@ -1,27 +1,92 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState,
+  useImperativeHandle,
+  forwardRef,
+  startTransition,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { RecentWriting } from "@/lib/types";
 import { getRecentWritings } from "@/lib/data/writings";
+import { clearAuthCookie } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import { useFocus } from "@/app/writings/focus-context";
+import { useUnsaved } from "@/app/writings/unsaved-context";
 
-interface SidebarProps {
-  currentWritingId?: string;
-  isFocusMode?: boolean;
-  onToggleFocus?: () => void;
+interface SidebarProps {}
+
+export interface SidebarRef {
+  refreshRecentWritings: () => Promise<void>;
 }
 
-export function Sidebar({
-  currentWritingId,
-  isFocusMode = false,
-  onToggleFocus,
-}: SidebarProps) {
+export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({}, ref) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isFocusMode, toggleFocus } = useFocus();
+  const { showWarning } = useUnsaved();
   const [recentWritings, setRecentWritings] = useState<RecentWriting[]>([]);
+  const [userName, setUserName] = useState<string>("");
+
+  // 從 pathname 提取當前選中的 writingId
+  const currentWritingId = pathname?.startsWith("/writings/")
+    ? pathname.split("/")[2] === "new"
+      ? undefined
+      : pathname.split("/")[2]
+    : undefined;
+
+  const refreshRecentWritings = async () => {
+    const writings = await getRecentWritings();
+    setRecentWritings(writings);
+  };
+
+  useImperativeHandle(ref, () => ({
+    refreshRecentWritings,
+  }));
 
   useEffect(() => {
-    getRecentWritings().then(setRecentWritings);
+    refreshRecentWritings();
   }, []);
+
+  useEffect(() => {
+    // 從 cookie 讀取使用者名稱
+    const cookies = document.cookie.split("; ");
+    const authCookie = cookies.find((c) => c.startsWith("auth-user="));
+    if (authCookie) {
+      try {
+        const userData = JSON.parse(
+          decodeURIComponent(authCookie.split("=")[1])
+        );
+        setUserName(userData.username || "User");
+      } catch {
+        setUserName("User");
+      }
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    await clearAuthCookie();
+    router.push("/login");
+  };
+
+  const handleWritingClick = async (writingId: string) => {
+    // 如果點擊的是當前文章，不需要處理
+    if (currentWritingId === writingId) {
+      return;
+    }
+
+    // 檢查是否需要顯示警告
+    const shouldNavigate = await showWarning();
+    if (shouldNavigate) {
+      // 使用 startTransition 標記路由導航為非緊急更新，避免阻塞 UI
+      startTransition(() => {
+        router.push(`/writings/${writingId}`);
+      });
+    }
+  };
 
   return (
     <div
@@ -36,7 +101,7 @@ export function Sidebar({
         {isFocusMode ? (
           <div className="relative w-[25px] h-[25px]">
             <Image
-              src="/logo-small.png"
+              src="/logo-small.svg"
               alt="HanWrite Logo"
               fill
               className="object-contain"
@@ -45,7 +110,7 @@ export function Sidebar({
         ) : (
           <div className="relative w-full aspect-667/172">
             <Image
-              src="/logo.png"
+              src="/logo.svg"
               alt="HanWrite Logo"
               fill
               className="object-contain"
@@ -60,8 +125,15 @@ export function Sidebar({
           isFocusMode ? "gap-[20px]" : "gap-[5px]"
         }`}
       >
-        <Link
-          href="/writings/new"
+        <button
+          onClick={async () => {
+            if (pathname !== "/writings/new") {
+              const shouldNavigate = await showWarning();
+              if (shouldNavigate) {
+                router.push("/writings/new");
+              }
+            }
+          }}
           className={`flex items-center rounded-[10px] text-(--color-text-secondary) hover:bg-slate-100 transition-colors duration-200 cursor-pointer ${
             isFocusMode
               ? "justify-center p-[5px]"
@@ -74,9 +146,16 @@ export function Sidebar({
           {!isFocusMode && (
             <span className="font-medium text-[14px]">New Writing</span>
           )}
-        </Link>
-        <Link
-          href="/brainstorm"
+        </button>
+        <button
+          onClick={async () => {
+            if (!pathname?.startsWith("/brainstorm")) {
+              const shouldNavigate = await showWarning();
+              if (shouldNavigate) {
+                router.push("/brainstorm");
+              }
+            }
+          }}
           className={`flex items-center rounded-[10px] text-(--color-text-secondary) hover:bg-slate-100 transition-colors duration-200 cursor-pointer ${
             isFocusMode
               ? "justify-center p-[5px]"
@@ -89,32 +168,46 @@ export function Sidebar({
           {!isFocusMode && (
             <span className="font-medium text-[14px]">Brainstorm Lab</span>
           )}
-        </Link>
+        </button>
       </div>
 
       {/* Recents 列表區域（可滾動，Focus 模式下隱藏） */}
       {!isFocusMode && (
-        <div className="flex flex-col gap-[10px] flex-1 overflow-hidden">
-          <p className="font-normal text-[14px] text-(--color-text-tertiary)">
+        <div className="flex flex-col gap-[10px] flex-1 min-h-0">
+          <p className="font-normal text-[14px] text-(--color-text-tertiary) shrink-0">
             Recents
           </p>
-          <div className="flex flex-col gap-[5px] overflow-y-auto">
+          <div className="flex flex-col gap-[5px] overflow-y-auto flex-1">
             {recentWritings.map((writing) => (
-              <Link
+              <div
                 key={writing.id}
-                href={`/writings/${writing.id}`}
-                className={`px-[10px] py-[5px] rounded-[10px] hover:bg-slate-100 transition-colors duration-200 cursor-pointer ${
+                onClick={() => handleWritingClick(writing.id)}
+                className={`px-[10px] py-[5px] rounded-[10px] hover:bg-slate-100 transition-colors duration-200 cursor-pointer shrink-0 ${
                   currentWritingId === writing.id ? "bg-slate-100" : ""
                 }`}
               >
                 <p className="font-medium text-[14px] text-(--color-text-secondary) overflow-hidden text-ellipsis whitespace-nowrap">
                   {writing.title}
                 </p>
-              </Link>
+              </div>
             ))}
           </div>
         </div>
       )}
+
+      {/* 使用者區域（固定，Focus 模式下隱藏） */}
+      {!isFocusMode && (
+        <div className="flex items-center justify-between shrink-0 pt-[10px] border-t border-(--color-border)">
+          <p className="font-medium text-[14px] text-(--color-text-secondary) overflow-hidden text-ellipsis whitespace-nowrap">
+            {userName}
+          </p>
+          <Button variant="cancel" onClick={handleLogout}>
+            Logout
+          </Button>
+        </div>
+      )}
     </div>
   );
-}
+});
+
+Sidebar.displayName = "Sidebar";

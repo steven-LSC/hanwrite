@@ -5,7 +5,7 @@ import { ParaphraseStyle } from "@/lib/types";
 
 interface ParaphraseStylePanelProps {
   onSelectStyle: (style: ParaphraseStyle) => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   selectionStart: number;
   selectionEnd: number;
 }
@@ -18,9 +18,9 @@ export function ParaphraseStylePanel({
 }: ParaphraseStylePanelProps) {
   const styles: Array<{ value: ParaphraseStyle; label: string; icon: string }> =
     [
-      { value: "formal", label: "Formally", icon: "work" },
-      { value: "natural", label: "Naturally", icon: "nature" },
-      { value: "native-like", label: "Native-like", icon: "translate" },
+      { value: "formal", label: "Formally", icon: "business_center" },
+      { value: "natural", label: "Naturally", icon: "conversation" },
+      { value: "native-like", label: "Native-like", icon: "group" },
     ];
 
   return (

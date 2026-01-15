@@ -1,25 +1,43 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { ParaphraseResult } from "@/lib/types";
+import { ParaphraseResult, ParaphraseStyle } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 
 interface ParaphrasePanelProps {
   result: ParaphraseResult;
-  onRetry: () => void;
+  selectedStyle: ParaphraseStyle | null;
+  onDiscard: () => void;
   onReplace: (enabledChanges: Set<number>) => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   selectionStart: number;
   selectionEnd: number;
 }
 
 export function ParaphrasePanel({
   result,
-  onRetry,
+  selectedStyle,
+  onDiscard,
   onReplace,
   textareaRef,
   selectionStart,
   selectionEnd,
 }: ParaphrasePanelProps) {
+  // 根據選擇的風格取得對應的 icon 和 label
+  const getStyleInfo = (style: ParaphraseStyle | null) => {
+    switch (style) {
+      case "formal":
+        return { icon: "business_center", label: "Formally" };
+      case "natural":
+        return { icon: "conversation", label: "Naturally" };
+      case "native-like":
+        return { icon: "group", label: "Native-like" };
+      default:
+        return { icon: "autorenew", label: "Paraphrase" };
+    }
+  };
+
+  const styleInfo = getStyleInfo(selectedStyle);
   const [showDropdown, setShowDropdown] = useState(false);
   const [enabledChanges, setEnabledChanges] = useState<Set<number>>(
     new Set(result.changes.map((_, index) => index))
@@ -105,63 +123,53 @@ export function ParaphrasePanel({
       newEnabled.add(index);
     }
     setEnabledChanges(newEnabled);
-
-    // 保持反白效果
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(selectionStart, selectionEnd);
-      }
-    }, 0);
   };
 
   const handleReplace = () => {
     onReplace(enabledChanges);
   };
 
+  const handleDiscard = () => {
+    onDiscard();
+  };
+
+  // 防止點擊時失去焦點
+  const preventBlur = (e: React.MouseEvent) => {
+    e.preventDefault();
+  };
+
   return (
-    <div className="bg-white border border-(--color-border) rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] p-[20px] flex flex-col gap-[10px] w-[340px] max-h-[500px]">
+    <div
+      className="bg-white border border-(--color-border) rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] p-[20px] flex flex-col gap-[10px] w-[340px] max-h-[300px] overflow-y-auto"
+      onMouseDown={preventBlur}
+    >
       {/* 頂部：選擇的風格 */}
       <div className="flex items-center gap-[5px] rounded-[10px] shrink-0">
         <span className="material-symbols-rounded text-[20px] text-(--color-text-secondary)">
-          autorenew
+          {styleInfo.icon}
         </span>
         <span className="font-medium text-[14px] text-(--color-text-secondary)">
-          Paraphrase
+          {styleInfo.label}
         </span>
       </div>
 
       {/* 預覽文字區（highlight 修改部分）*/}
-      <div className="p-[10px] bg-(--color-bg-secondary) rounded-[10px]">
-        <p className="font-medium text-[14px] text-(--color-text-secondary) whitespace-pre-wrap">
-          {highlightSegments.map((segment, index) =>
-            segment.isHighlight ? (
-              <span key={index} className="bg-[#e2e8f0] rounded-[2px] px-[2px]">
-                {segment.text}
-              </span>
-            ) : (
-              <span key={index}>{segment.text}</span>
-            )
-          )}
-        </p>
-      </div>
+      <p className="font-medium text-[14px] text-(--color-text-secondary) whitespace-pre-wrap">
+        {highlightSegments.map((segment, index) =>
+          segment.isHighlight ? (
+            <span key={index} className="bg-[#e2e8f0] rounded-[2px] px-[2px]">
+              {segment.text}
+            </span>
+          ) : (
+            <span key={index}>{segment.text}</span>
+          )
+        )}
+      </p>
 
       {/* Dropdown 修改項目清單 */}
       <div className="flex flex-col gap-[5px] shrink-0">
         <button
-          onClick={() => {
-            setShowDropdown(!showDropdown);
-            // 保持反白效果
-            setTimeout(() => {
-              if (textareaRef.current) {
-                textareaRef.current.focus();
-                textareaRef.current.setSelectionRange(
-                  selectionStart,
-                  selectionEnd
-                );
-              }
-            }, 0);
-          }}
+          onClick={() => setShowDropdown(!showDropdown)}
           className="flex items-center gap-[5px] text-left"
         >
           <p className="font-medium text-[12px] text-(--color-text-secondary)">
@@ -181,13 +189,24 @@ export function ParaphrasePanel({
             {result.changes.map((change, index) => (
               <label
                 key={index}
-                className="bg-(--color-bg-secondary) flex items-center gap-[5px] p-[5px] rounded-[5px] cursor-pointer hover:brightness-95"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // 如果點擊的是 checkbox，不處理（讓 checkbox 的 onChange 處理）
+                  if ((e.target as HTMLElement).tagName === "INPUT") {
+                    return;
+                  }
+                  handleToggleChange(index);
+                }}
+                className="flex items-center gap-[5px] p-[5px] rounded-[5px] cursor-pointer hover:bg-[#f8fafc] transition-colors"
               >
                 <input
                   type="checkbox"
                   checked={enabledChanges.has(index)}
-                  onChange={() => handleToggleChange(index)}
-                  className="shrink-0 w-[17px] h-[17px] cursor-pointer"
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleToggleChange(index);
+                  }}
+                  className="shrink-0 w-[12px] h-[12px] cursor-pointer rounded-[3px] accent-[#475569] transition-all"
                 />
                 <p className="flex-1 font-medium text-[12px] text-(--color-text-secondary)">
                   {change.revised}{" "}
@@ -202,44 +221,20 @@ export function ParaphrasePanel({
 
       {/* 底部按鈕 */}
       <div className="flex gap-[10px] justify-end shrink-0">
-        {/* Retry 按鈕 */}
-        <button
-          onClick={onRetry}
-          className="bg-(--color-bg-secondary) flex items-center gap-[5px] px-[10px] py-[5px] rounded-[5px] hover:brightness-95 transition-colors duration-200"
-        >
-          <span className="material-symbols-rounded text-[20px] text-(--color-text-secondary)">
-            refresh
-          </span>
-          <span className="font-medium text-[14px] text-(--color-text-secondary)">
-            Retry
-          </span>
-        </button>
+        {/* Discard 按鈕 */}
+        <Button variant="cancel" icon="delete" onClick={handleDiscard}>
+          Discard
+        </Button>
 
         {/* Replace 按鈕 */}
-        <button
+        <Button
+          variant="primary"
+          icon="check"
           onClick={handleReplace}
           disabled={enabledChanges.size === 0}
-          className={`flex items-center gap-[5px] px-[10px] py-[5px] rounded-[5px] transition-colors duration-200 ${
-            enabledChanges.size === 0
-              ? "bg-gray-300 cursor-not-allowed"
-              : "bg-(--color-primary) hover:brightness-110"
-          }`}
         >
-          <span
-            className={`material-symbols-rounded text-[20px] ${
-              enabledChanges.size === 0 ? "text-gray-500" : "text-white"
-            }`}
-          >
-            check
-          </span>
-          <span
-            className={`font-medium text-[14px] ${
-              enabledChanges.size === 0 ? "text-gray-500" : "text-white"
-            }`}
-          >
-            Replace
-          </span>
-        </button>
+          Replace
+        </Button>
       </div>
     </div>
   );

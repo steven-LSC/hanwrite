@@ -62,3 +62,26 @@ export type ContextMenuStage =
   | "expansion-hint"
   | "paraphrase-style" // 選擇風格階段
   | "paraphrase-result"; // 顯示結果階段
+
+// Reverse Outlining 相關型別
+export interface ReverseOutliningItem {
+  outline: string; // 段落大綱
+  reasons: [string, string]; // 兩點解釋原因（固定兩點）
+}
+
+export type ReverseOutliningResult = ReverseOutliningItem[];
+
+// Tool Panel 相關型別
+export type ToolType =
+  | "reference-panel"
+  | "expression-builder"
+  | "ai-analysis"
+  | "reverse-outlining"
+  | "usage";
+
+export interface ToolState {
+  currentTool: ToolType;
+  "reverse-outlining": ReverseOutliningResult | null;
+  "ai-analysis": any | null;
+  "expression-builder": ExpressionBuilderResult[] | null;
+}

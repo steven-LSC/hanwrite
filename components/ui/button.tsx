@@ -6,6 +6,8 @@ interface ButtonProps {
   onClick?: () => void;
   children?: React.ReactNode;
   className?: string;
+  disabled?: boolean;
+  type?: "button" | "submit" | "reset";
 }
 
 export function Button({
@@ -14,6 +16,8 @@ export function Button({
   onClick,
   children,
   className = "",
+  disabled = false,
+  type = "button",
 }: ButtonProps) {
   // 變體樣式
   const variantStyles = {
@@ -35,13 +39,28 @@ export function Button({
   const isIconOnly = icon && !children;
   const iconOnlyStyles = isIconOnly ? "justify-center" : "";
 
+  // disabled 狀態的樣式
+  const disabledStyles = disabled
+    ? variant === "primary"
+      ? "bg-gray-300 text-gray-500 cursor-not-allowed hover:brightness-100"
+      : "opacity-50 cursor-not-allowed hover:brightness-100"
+    : "";
+
   return (
     <button
+      type={type}
       onClick={onClick}
-      className={`${baseStyles} ${variantStyles[variant]} ${iconOnlyStyles} ${className}`}
+      disabled={disabled}
+      className={`${baseStyles} ${variantStyles[variant]} ${iconOnlyStyles} ${disabledStyles} ${className}`}
     >
       {icon && (
-        <span className="material-symbols-rounded text-[20px]">{icon}</span>
+        <span
+          className={`material-symbols-rounded text-[20px] ${
+            disabled && variant === "primary" ? "text-gray-500" : ""
+          }`}
+        >
+          {icon}
+        </span>
       )}
       {children && (
         <span className="font-medium text-[14px] leading-normal">

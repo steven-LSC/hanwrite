@@ -1,14 +1,32 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "../ui/button";
+import { Loading } from "../ui/loading";
 import { ExpressionBuilderResult } from "@/lib/types";
 import { getExpressionBuilderResults } from "@/lib/data/writings";
 
-export function ExpressionBuilder() {
+interface ExpressionBuilderProps {
+  writingId?: string;
+  initialResults: ExpressionBuilderResult[] | null;
+  onResultsChange: (results: ExpressionBuilderResult[]) => void;
+}
+
+export function ExpressionBuilder({
+  writingId,
+  initialResults,
+  onResultsChange,
+}: ExpressionBuilderProps) {
   const [inputText, setInputText] = useState("");
-  const [results, setResults] = useState<ExpressionBuilderResult[]>([]);
+  const [results, setResults] = useState<ExpressionBuilderResult[]>(
+    initialResults || []
+  );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // 當 writingId 或 initialResults 改變時，同步狀態
+  useEffect(() => {
+    setResults(initialResults || []);
+  }, [writingId, initialResults]);
 
   const handleAnalyze = async () => {
     if (!inputText.trim()) return;
@@ -17,6 +35,8 @@ export function ExpressionBuilder() {
     try {
       const analysisResults = await getExpressionBuilderResults(inputText);
       setResults(analysisResults);
+      // 通知父元件更新狀態
+      onResultsChange(analysisResults);
     } catch (error) {
       console.error("Analysis failed:", error);
     } finally {
@@ -52,12 +72,7 @@ export function ExpressionBuilder() {
       {/* 結果顯示區（可滾動） */}
       <div className="flex-1 overflow-y-auto px-[20px] py-[20px] min-h-0">
         {isAnalyzing ? (
-          <div className="flex flex-col items-center justify-center h-full gap-[10px]">
-            <div className="w-[40px] h-[40px] border-4 border-(--color-border) border-t-(--color-primary) rounded-full animate-spin" />
-            <span className="text-[16px] text-(--color-text-secondary)">
-              Loading
-            </span>
-          </div>
+          <Loading />
         ) : (
           <div className="flex flex-col gap-[10px]">
             {results.map((result, index) => (
