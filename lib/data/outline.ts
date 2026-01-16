@@ -104,5 +104,54 @@ export async function getSavedOutline(
     }
   }
 
+  // 假資料：為 "busan-travel" 提供預設 outline
+  if (mapId === "busan-travel") {
+    const mockOutline: OutlineData = {
+      title: "부산 여행",
+      sections: [
+        {
+          type: "introduction",
+          description:
+            "Describe who went on the trip, when it happened, and why you decided to go.",
+          keywordsOptions: [
+            "부모님, 동생, 부산 여행",
+            "가족, 여름방학, 휴식",
+            "부산, 여행, 계획",
+          ],
+          selectedKeywordIndex: 0,
+          exampleSentence:
+            "나는 부모님과 동생과 함께 여름방학에 휴식을 위해 부산 여행을 떠났다.",
+        },
+        {
+          type: "body",
+          description:
+            "Describe what you did during the trip, what you saw, and how you felt.",
+          keywordsOptions: [
+            "해운대, 산책, 파도",
+            "자갈치 시장, 쇼핑",
+            "사진 찍기, 해운대, 파도",
+          ],
+          selectedKeywordIndex: 1,
+          exampleSentence:
+            "해운대에서 산책을 하며 파도를 바라보니 마음이 편안해졌다.",
+        },
+        {
+          type: "conclusion",
+          description:
+            "Summarize what you learned or how the trip changed your feelings.",
+          keywordsOptions: [
+            "부산 여행, 부모님, 동생",
+            "추억, 가족, 행복",
+            "여행, 성장, 감사",
+          ],
+          selectedKeywordIndex: 0,
+          exampleSentence:
+            "부산 여행을 통해 부모님과 동생과의 관계가 더욱 가까워졌음을 느꼈다.",
+        },
+      ],
+    };
+    return mockOutline;
+  }
+
   return null;
 }

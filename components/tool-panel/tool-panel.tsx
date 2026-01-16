@@ -9,7 +9,10 @@ import React, {
 } from "react";
 import { useParams } from "next/navigation";
 import { ExpressionBuilder } from "./expression-builder";
-import { ReferencePanel } from "./reference-panel";
+import {
+  ReferencePanel,
+  ReferencePanelHandle,
+} from "./reference-panel";
 import { AIAnalysis } from "./ai-analysis";
 import { ReverseOutlining, ReverseOutliningHandle } from "./reverse-outlining";
 import { Usage } from "./usage";
@@ -59,6 +62,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
     "reverse-outlining": null,
     "ai-analysis": null,
     "expression-builder": null,
+    "reference-panel": null,
   });
   // 追蹤當前綁定的 writingId
   const [currentWritingId, setCurrentWritingId] = useState<string | undefined>(
@@ -66,6 +70,8 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
   );
   // Reverse Outlining 的 ref
   const reverseOutliningRef = useRef<ReverseOutliningHandle>(null);
+  // Reference Panel 的 ref
+  const referencePanelRef = useRef<ReferencePanelHandle>(null);
 
   // 暴露方法給父元件
   useImperativeHandle(ref, () => ({
@@ -80,6 +86,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
         "reverse-outlining": null,
         "ai-analysis": null,
         "expression-builder": null,
+        "reference-panel": null,
       });
       setCurrentWritingId(writingId);
     }
@@ -182,7 +189,18 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
     const currentWritingIdValue = writingId || undefined;
     switch (currentTool) {
       case "reference-panel":
-        return <ReferencePanel />;
+        return (
+          <ReferencePanel
+            ref={referencePanelRef}
+            initialData={toolState["reference-panel"]}
+            onDataChange={(data) => {
+              setToolState((prev) => ({
+                ...prev,
+                "reference-panel": data,
+              }));
+            }}
+          />
+        );
       case "expression-builder":
         return (
           <ExpressionBuilder
@@ -408,8 +426,13 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
                 variant={config.rightButton.variant}
                 icon={config.rightButton.icon}
                 onClick={async () => {
-                  // 如果是 Reverse Outlining，呼叫元件的 handleAnalyze
-                  if (currentTool === "reverse-outlining") {
+                  // 如果是 Reference Panel，開啟 Modal
+                  if (currentTool === "reference-panel") {
+                    if (referencePanelRef.current) {
+                      referencePanelRef.current.openModal();
+                    }
+                  } else if (currentTool === "reverse-outlining") {
+                    // 如果是 Reverse Outlining，呼叫元件的 handleAnalyze
                     if (reverseOutliningRef.current) {
                       await reverseOutliningRef.current.handleAnalyze();
                     }

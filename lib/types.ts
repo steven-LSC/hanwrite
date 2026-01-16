@@ -79,11 +79,21 @@ export type ToolType =
   | "reverse-outlining"
   | "usage";
 
+export interface ReferencePanelData {
+  mindmap: {
+    id: string;
+    title: string;
+    nodes: any[];
+  } | null;
+  outline: OutlineData | null;
+}
+
 export interface ToolState {
   currentTool: ToolType;
   "reverse-outlining": ReverseOutliningResult | null;
   "ai-analysis": any | null;
   "expression-builder": ExpressionBuilderResult[] | null;
+  "reference-panel": ReferencePanelData | null;
 }
 
 // Outline Generator 相關型別
