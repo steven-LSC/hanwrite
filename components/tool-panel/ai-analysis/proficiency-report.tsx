@@ -143,11 +143,13 @@ export const ProficiencyReportComponent = forwardRef<
           )}
         </div>
 
-        {/* 免責聲明 */}
-        <p className="text-[14px] text-red-600">
-          The proficiency levels shown here are for reference only and may not
-          represent a full assessment of your language ability.
-        </p>
+        {/* 免責聲明 - 只在有報告時顯示 */}
+        {report && (
+          <p className="text-[14px] text-red-600">
+            The proficiency levels shown here are for reference only and may not
+            represent a full assessment of your language ability.
+          </p>
+        )}
 
         {/* 按鈕區域 */}
         <div className="flex items-center justify-end gap-[10px] shrink-0">

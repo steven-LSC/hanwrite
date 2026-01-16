@@ -24,7 +24,7 @@ export function Button({
     primary:
       "bg-(--color-primary) text-white hover:brightness-110 transition-colors duration-200",
     secondary:
-      "bg-(--color-secondary) text-white hover:brightness-110 transition-colors duration-200",
+      "bg-[#DBEAFE] text-[#1D4ED8] hover:bg-[#BFDBFE] transition-colors duration-200",
     cancel:
       "bg-(--color-bg-secondary) text-(--color-text-secondary) border border-(--color-border) hover:bg-slate-200 transition-colors duration-200",
     third:

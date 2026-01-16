@@ -19,11 +19,13 @@ export default function WritingsLayout({
       <div className="flex-1 min-w-[20px]" />
 
       {/* 右側工具面板 - 固定 498px，Focus 模式下隱藏 */}
-      {!isFocusMode && (
-        <div className="shrink-0 flex items-center self-stretch">
-          <ToolPanel ref={toolPanelRef} />
-        </div>
-      )}
+      <div
+        className={`shrink-0 flex items-center self-stretch ${
+          isFocusMode ? "hidden" : ""
+        }`}
+      >
+        <ToolPanel ref={toolPanelRef} />
+      </div>
     </>
   );
 }

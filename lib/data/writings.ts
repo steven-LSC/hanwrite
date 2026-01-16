@@ -4,6 +4,7 @@ import {
   ExpressionBuilderResult,
   ReverseOutliningResult,
   ProficiencyReport,
+  ErrorDetectionResult,
   ToolState,
 } from "../types";
 
@@ -331,6 +332,51 @@ export async function getProficiencyReport(
   ];
 
   return mockReport;
+}
+
+/**
+ * 取得 Error Detection & Correction 分析結果（薄抽象層）
+ * 未來會改成真正的 AI API 呼叫
+ */
+export async function getErrorDetectionResults(
+  writingId: string
+): Promise<ErrorDetectionResult> {
+  // 模擬 API 延遲
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  // 取得文章內容
+  const writing = await getWriting(writingId);
+
+  // 假資料：根據 Figma 設計的內容
+  const mockResults: ErrorDetectionResult = [
+    {
+      type: "grammar",
+      data: {
+        grammarName: "Noun + (으)로",
+        originalError: "사진로",
+        errorPosition: { start: 0, end: 3 }, // 假設位置
+        correctSentence: "사진으로",
+        explanation: "Indicates means or material used for an action.",
+        example: "사잇길로 가면 해운대에 금방 도착한다.",
+      },
+    },
+    {
+      type: "vocab",
+      data: {
+        correctWord: "해산물",
+        wrongWord: "해사물",
+        errorPosition: { start: 0, end: 3 }, // 假設位置
+        translation: "seafood eaten as food",
+        synonyms: ["수산물 (marine product)"],
+        relatedWords: ["생선 (fish)", "조개 (clam)", "식당 (restaurant)"],
+        antonyms: [],
+        partOfSpeech: "noun",
+        example: "부산에 가면 신선한 해산물을 꼭 먹어야 한다.",
+      },
+    },
+  ];
+
+  return mockResults;
 }
 
 /**

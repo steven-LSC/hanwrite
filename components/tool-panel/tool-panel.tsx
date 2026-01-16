@@ -17,6 +17,7 @@ import { Button } from "../ui/button";
 import {
   ReverseOutliningResult,
   ExpressionBuilderResult,
+  ErrorDetectionResult,
   ToolState,
 } from "@/lib/types";
 
@@ -58,6 +59,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
     currentTool: "reference-panel",
     "reverse-outlining": null,
     "ai-analysis": null,
+    "error-detection-correction": null,
     "expression-builder": null,
     "reference-panel": null,
   });
@@ -84,6 +86,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
         currentTool: "reference-panel",
         "reverse-outlining": null,
         "ai-analysis": null,
+        "error-detection-correction": null,
         "expression-builder": null,
         "reference-panel": null,
       });
@@ -136,10 +139,28 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
         label: "Find",
         variant: "primary",
       };
-    } else if (tool === "ai-analysis" || tool === "reverse-outlining") {
+    } else if (tool === "reverse-outlining") {
       // 檢查該工具是否有結果，決定顯示 Update 或 Analyze
       const hasResults =
         toolState[tool] !== null && toolState[tool] !== undefined;
+      if (hasResults) {
+        rightButton = {
+          icon: "replay",
+          label: "Update",
+          variant: "primary",
+        };
+      } else {
+        rightButton = {
+          icon: "donut_large",
+          label: "Analyze",
+          variant: "primary",
+        };
+      }
+    } else if (tool === "ai-analysis") {
+      // 檢查 error-detection-correction 是否有結果，決定顯示 Update 或 Analyze
+      const hasResults =
+        toolState["error-detection-correction"] !== null &&
+        toolState["error-detection-correction"] !== undefined;
       if (hasResults) {
         rightButton = {
           icon: "replay",
@@ -223,6 +244,13 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
               setToolState((prev) => ({
                 ...prev,
                 "ai-analysis": results,
+              }));
+            }}
+            errorDetectionInitialResults={toolState["error-detection-correction"]}
+            onErrorDetectionResultsChange={(results) => {
+              setToolState((prev) => ({
+                ...prev,
+                "error-detection-correction": results,
               }));
             }}
           />
@@ -445,8 +473,10 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
                       await reverseOutliningRef.current.handleAnalyze();
                     }
                   } else if (currentTool === "ai-analysis") {
-                    // AI Analysis 的邏輯之後再實作
-                    // 狀態會由 AIAnalysis 元件透過 onResultsChange 更新
+                    // 呼叫 Error Detection & Correction 的 handleAnalyze
+                    if (aiAnalysisRef.current) {
+                      await aiAnalysisRef.current.handleErrorDetectionAnalyze();
+                    }
                   }
                 }}
               >
