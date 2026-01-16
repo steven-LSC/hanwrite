@@ -85,3 +85,18 @@ export interface ToolState {
   "ai-analysis": any | null;
   "expression-builder": ExpressionBuilderResult[] | null;
 }
+
+// Outline Generator 相關型別
+export type OutlineSectionType = "introduction" | "body" | "conclusion";
+
+export interface OutlineSection {
+  type: OutlineSectionType;
+  description: string; // 描述性指引（英文）
+  keywordsOptions: string[]; // 關鍵字選項陣列
+  exampleSentence: string; // 範例句子（韓文）
+}
+
+export interface OutlineData {
+  title: string; // 心智圖名稱
+  sections: Array<OutlineSection & { selectedKeywordIndex: number }>; // 包含使用者選擇的關鍵字索引
+}

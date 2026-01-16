@@ -1,0 +1,372 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  type Node,
+  type Edge,
+  ReactFlow,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import { MindmapNode } from "./mindmap-node";
+import {
+  findRootNode,
+  calculateTreePositions,
+  findClosestParentForInsert,
+  findInsertIndex,
+} from "@/lib/mindmap-utils";
+import { generateEdges, findAllDescendants } from "./mindmap-utils";
+
+interface MindmapProps {
+  initialNodes?: Node[];
+  onNodesChange?: (nodes: Node[]) => void;
+}
+
+export function Mindmap({ initialNodes = [], onNodesChange }: MindmapProps) {
+  const { screenToFlowPosition } = useReactFlow();
+  const [nodes, setNodes, onNodesChangeInternal] =
+    useNodesState<Node>(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const prevInitialNodesRef = useRef<Node[]>(initialNodes);
+  const isInternalUpdateRef = useRef(false);
+  const prevNodesRef = useRef<Node[]>([]);
+
+  // 處理節點 label 變更
+  const handleLabelChange = useCallback(
+    (nodeId: string, newLabel: string) => {
+      isInternalUpdateRef.current = true;
+      setNodes((nds) => {
+        const updated = nds.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  label: newLabel,
+                  isNew: false,
+                },
+              }
+            : node
+        );
+        // 重新計算位置
+        const root = findRootNode(updated);
+        if (root) {
+          return calculateTreePositions(updated, root.id);
+        }
+        return updated;
+      });
+    },
+    [setNodes]
+  );
+
+  // 處理在節點下新增子節點
+  const handleAddChild = useCallback(
+    (parentId: string) => {
+      isInternalUpdateRef.current = true;
+      setNodes((nds) => {
+        const parentNode = nds.find((n) => n.id === parentId);
+        if (!parentNode) return nds;
+
+        // 繼承父節點的 direction，如果父節點沒有 direction（是 root），預設向右
+        const direction =
+          (parentNode.data.direction as "left" | "right") || "right";
+
+        const newNodeId = `node-${Date.now()}`;
+        const newNode: Node = {
+          id: newNodeId,
+          position: { x: 0, y: 0 }, // 位置會由 calculateTreePositions 計算
+          data: {
+            label: "",
+            parentId: parentId,
+            direction: direction,
+            isNew: true,
+            onLabelChange: (newLabel: string) =>
+              handleLabelChange(newNodeId, newLabel),
+            onAddChild: handleAddChild,
+          },
+        };
+
+        const updated = [...nds, newNode];
+        const root = findRootNode(updated);
+        if (root) {
+          return calculateTreePositions(updated, root.id);
+        }
+        return updated;
+      });
+    },
+    [setNodes, handleLabelChange]
+  );
+
+  // 同步外部 nodes 變化，並為它們添加 callbacks
+  useEffect(() => {
+    // 使用深度比較來檢查 initialNodes 是否真的改變了
+    const nodesChanged =
+      initialNodes.length !== prevInitialNodesRef.current.length ||
+      initialNodes.some(
+        (node, index) =>
+          node.id !== prevInitialNodesRef.current[index]?.id ||
+          node.data.label !== prevInitialNodesRef.current[index]?.data.label ||
+          node.data.parentId !== prevInitialNodesRef.current[index]?.data.parentId
+      );
+
+    // 只有在外部傳入的 nodes 真的改變時才更新（不是內部更新導致的）
+    if (nodesChanged && !isInternalUpdateRef.current) {
+      // 為 nodes 添加 callbacks
+      const nodesWithCallbacks = initialNodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          onLabelChange: (newLabel: string) =>
+            handleLabelChange(node.id, newLabel),
+          onAddChild: handleAddChild,
+        },
+      }));
+
+      // 重新計算位置
+      const root = findRootNode(nodesWithCallbacks);
+      const positionedNodes = root
+        ? calculateTreePositions(nodesWithCallbacks, root.id)
+        : nodesWithCallbacks;
+
+      setNodes(positionedNodes);
+      prevInitialNodesRef.current = initialNodes;
+      prevNodesRef.current = positionedNodes;
+      // 外部更新時，確保標記為 false
+      isInternalUpdateRef.current = false;
+    }
+  }, [initialNodes, setNodes, handleLabelChange, handleAddChild]);
+
+  // 註冊自訂 node types
+  const nodeTypes = useMemo(() => ({ default: MindmapNode }), []);
+
+  // 初始化 prevNodesRef
+  useEffect(() => {
+    if (prevNodesRef.current.length === 0 && nodes.length > 0) {
+      prevNodesRef.current = nodes;
+    }
+  }, [nodes]);
+
+  // 當 nodes 變更時，自動更新 edges
+  useEffect(() => {
+    setEdges(generateEdges(nodes));
+  }, [nodes, setEdges]);
+
+  // 當 nodes 變更時，通知父元件（只在內部更新時通知）
+  useEffect(() => {
+    // 檢查 nodes 是否真的改變了（避免不必要的通知）
+    const nodesChanged =
+      nodes.length !== prevNodesRef.current.length ||
+      nodes.some(
+        (node, index) =>
+          node.id !== prevNodesRef.current[index]?.id ||
+          node.data.label !== prevNodesRef.current[index]?.data.label ||
+          node.data.parentId !== prevNodesRef.current[index]?.data.parentId ||
+          node.position.x !== prevNodesRef.current[index]?.position.x ||
+          node.position.y !== prevNodesRef.current[index]?.position.y
+      );
+
+    if (nodesChanged) {
+      if (onNodesChange && isInternalUpdateRef.current) {
+        // 通知父組件前先重置標記，避免後續的 useEffect 誤判
+        isInternalUpdateRef.current = false;
+        onNodesChange(nodes);
+      }
+      // 更新 ref
+      prevNodesRef.current = nodes;
+    }
+  }, [nodes, onNodesChange]);
+
+  const handleNodesChange = useCallback(
+    (changes: Parameters<typeof onNodesChangeInternal>[0]) => {
+      onNodesChangeInternal(changes);
+    },
+    [onNodesChangeInternal]
+  );
+
+  // 處理刪除節點（包含所有子節點）
+  const handleDeleteNode = useCallback(
+    (nodeId: string) => {
+      isInternalUpdateRef.current = true;
+      setNodes((nds) => {
+        // 找出要刪除的節點
+        const nodeToDelete = nds.find((n) => n.id === nodeId);
+        if (!nodeToDelete) return nds;
+
+        // 不允許刪除 root 節點
+        if (!nodeToDelete.data.parentId) {
+          return nds;
+        }
+
+        // 找出所有需要刪除的節點（包括子孫節點）
+        const nodesToDelete = findAllDescendants(nodeId, nds);
+
+        // 過濾掉要刪除的節點
+        const updated = nds.filter((node) => !nodesToDelete.includes(node.id));
+
+        // 重新計算位置
+        const root = findRootNode(updated);
+        if (root) {
+          return calculateTreePositions(updated, root.id);
+        }
+        return updated;
+      });
+    },
+    [setNodes]
+  );
+
+  // 處理雙擊空白處新增 node
+  const handlePaneDoubleClick = useCallback(
+    (event: React.MouseEvent) => {
+      // 將螢幕座標轉換為 Flow 座標
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      isInternalUpdateRef.current = true;
+
+      // 如果沒有任何節點，新增的第一個節點就是 root
+      if (nodes.length === 0) {
+        const newNodeId = `root-${Date.now()}`;
+        const newNode: Node = {
+          id: newNodeId,
+          position: { x: 0, y: 0 },
+          data: {
+            label: "",
+            parentId: null,
+            isNew: true,
+            onLabelChange: (newLabel: string) =>
+              handleLabelChange(newNodeId, newLabel),
+            onAddChild: handleAddChild,
+          },
+        };
+        setNodes([newNode]);
+        return;
+      }
+
+      // 找出最近的父節點和方向
+      const result = findClosestParentForInsert(nodes, position);
+      if (!result) return;
+
+      const { parent: parentNode, direction } = result;
+
+      // 找出該父節點的所有子節點（相同 direction）
+      const childrenNodes = nodes.filter(
+        (node) =>
+          node.data.parentId === parentNode.id &&
+          node.data.direction === direction
+      );
+
+      // 找出應該插入的索引位置
+      const insertIndex = findInsertIndex(childrenNodes, position.y);
+
+      setNodes((nds) => {
+        const newNodeId = `node-${Date.now()}`;
+        const newNode: Node = {
+          id: newNodeId,
+          position: { x: 0, y: 0 }, // 位置會由 calculateTreePositions 計算
+          data: {
+            label: "",
+            parentId: parentNode.id,
+            direction: direction,
+            isNew: true,
+            onLabelChange: (newLabel: string) =>
+              handleLabelChange(newNodeId, newLabel),
+            onAddChild: handleAddChild,
+          },
+        };
+
+        // 在指定位置插入新節點
+        // 先找出所有非該父節點且非相同方向的子節點
+        const nonChildren = nds.filter(
+          (node) =>
+            node.data.parentId !== parentNode.id ||
+            node.data.direction !== direction
+        );
+        // 找出所有子節點，按 Y 軸排序
+        const sortedChildren = [...childrenNodes].sort(
+          (a, b) => a.position.y - b.position.y
+        );
+        // 在指定索引位置插入新節點
+        sortedChildren.splice(insertIndex, 0, newNode);
+        // 合併節點
+        const updated = [...nonChildren, ...sortedChildren];
+
+        const root = findRootNode(updated);
+        if (root) {
+          return calculateTreePositions(updated, root.id);
+        }
+        return updated;
+      });
+    },
+    [screenToFlowPosition, nodes, handleLabelChange, handleAddChild, setNodes]
+  );
+
+  // 使用 onPaneClick 配合 timer 來檢測雙擊
+  const handlePaneClick = useCallback(
+    (event: React.MouseEvent) => {
+      if (clickTimeoutRef.current) {
+        // 雙擊檢測到
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+        handlePaneDoubleClick(event);
+      } else {
+        // 第一次點擊：等待看是否有第二次點擊
+        clickTimeoutRef.current = setTimeout(() => {
+          if (clickTimeoutRef.current) {
+            clearTimeout(clickTimeoutRef.current);
+            clickTimeoutRef.current = null;
+          }
+        }, 300); // 雙擊時間閾值：300ms
+      }
+    },
+    [handlePaneDoubleClick]
+  );
+
+  // 清理 timeout
+  useEffect(() => {
+    return () => {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={handleNodesChange}
+      onEdgesChange={(changes) => {
+        // 過濾掉刪除 edge 的操作，只允許其他操作
+        const filteredChanges = changes.filter(
+          (change) => change.type !== "remove"
+        );
+        onEdgesChange(filteredChanges);
+      }}
+      onNodesDelete={(deleted) => {
+        // 當用戶按下 Delete 鍵時，刪除選中的節點
+        deleted.forEach((node) => handleDeleteNode(node.id));
+      }}
+      onPaneClick={handlePaneClick}
+      nodeTypes={nodeTypes}
+      nodesDraggable={false}
+      nodesConnectable={false}
+      nodesFocusable={true}
+      edgesFocusable={false}
+      elementsSelectable={true}
+      selectNodesOnDrag={false}
+      deleteKeyCode={["Delete", "Backspace"]}
+      proOptions={{ hideAttribution: true }}
+      zoomOnDoubleClick={false}
+      defaultEdgeOptions={{
+        type: "smoothstep",
+        animated: false,
+        style: { stroke: "var(--color-text-tertiary)", strokeWidth: 2 },
+      }}
+    />
+  );
+}

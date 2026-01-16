@@ -41,6 +41,7 @@ alwaysApply: true
 - 盡量使用簡寫，避免重複的描述，例如使用：rounded-t-[10px] 而不是 rounded-tr-[10px] rounded-tl-[10px]
 - 避免使用不必要的描述
 - 使用 Tailwind 4 的語法
+- 使用顏色前先去 global.css 那邊看有沒有可以用的 variable
 
 ---
 
