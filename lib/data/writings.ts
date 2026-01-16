@@ -3,6 +3,7 @@ import {
   RecentWriting,
   ExpressionBuilderResult,
   ReverseOutliningResult,
+  ProficiencyReport,
   ToolState,
 } from "../types";
 
@@ -289,6 +290,47 @@ export async function getReverseOutliningResults(
       `Outline summarizes the main point of paragraph ${index + 1}.`,
     ],
   }));
+}
+
+/**
+ * 取得 Proficiency Report 分析結果（薄抽象層）
+ * 未來會改成真正的 AI API 呼叫
+ */
+export async function getProficiencyReport(
+  writingId: string
+): Promise<ProficiencyReport> {
+  // 模擬 API 延遲
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  // 假資料：根據 Figma 設計的內容
+  const mockReport: ProficiencyReport = [
+    {
+      category: "Content & Task Achievement",
+      level: 5,
+      description:
+        "The content is complete and clearly conveys the travel experience with a coherent theme. However, some parts remain rather general. To reach the next level, try adding more vivid and specific descriptions to enhance realism.",
+    },
+    {
+      category: "Organization & Coherence",
+      level: 5,
+      description:
+        "The paragraph organization is clear and the overall flow is smooth. Yet, transition markers are still limited. Incorporating more discourse connectors can make the narrative more structured and cohesive.",
+    },
+    {
+      category: "Language Use",
+      level: 4,
+      description:
+        "Vocabulary and grammar are generally accurate and natural, showing fluent control of expression. However, sentence patterns remain repetitive. To improve, try using complex or varied sentence structures to enrich your writing style.",
+    },
+    {
+      category: "Sociolinguistic Appropriateness",
+      level: 3,
+      description:
+        "The tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contexts. The tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contexts The tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contexts",
+    },
+  ];
+
+  return mockReport;
 }
 
 /**

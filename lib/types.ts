@@ -71,6 +71,15 @@ export interface ReverseOutliningItem {
 
 export type ReverseOutliningResult = ReverseOutliningItem[];
 
+// Proficiency Report 相關型別
+export interface ProficiencyReportItem {
+  category: string; // 評估項目名稱
+  level: number; // 等級 1-6
+  description: string; // 描述文字
+}
+
+export type ProficiencyReport = ProficiencyReportItem[];
+
 // Tool Panel 相關型別
 export type ToolType =
   | "reference-panel"
@@ -91,7 +100,7 @@ export interface ReferencePanelData {
 export interface ToolState {
   currentTool: ToolType;
   "reverse-outlining": ReverseOutliningResult | null;
-  "ai-analysis": any | null;
+  "ai-analysis": ProficiencyReport | null;
   "expression-builder": ExpressionBuilderResult[] | null;
   "reference-panel": ReferencePanelData | null;
 }

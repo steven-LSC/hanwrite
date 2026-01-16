@@ -14,10 +14,7 @@ import {
   type MindmapData,
   prepareMindmapNodes,
 } from "@/components/brainstorm/use-mindmap-data";
-import {
-  type OutlineData,
-  type ReferencePanelData,
-} from "@/lib/types";
+import { type OutlineData, type ReferencePanelData } from "@/lib/types";
 import { getAllMindmaps } from "@/lib/data/mindmap";
 import { getSavedOutline } from "@/lib/data/outline";
 

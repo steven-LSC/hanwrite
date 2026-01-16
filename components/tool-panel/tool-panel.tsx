@@ -9,11 +9,8 @@ import React, {
 } from "react";
 import { useParams } from "next/navigation";
 import { ExpressionBuilder } from "./expression-builder";
-import {
-  ReferencePanel,
-  ReferencePanelHandle,
-} from "./reference-panel";
-import { AIAnalysis } from "./ai-analysis";
+import { ReferencePanel, ReferencePanelHandle } from "./reference-panel";
+import { AIAnalysis, AIAnalysisHandle } from "./ai-analysis";
 import { ReverseOutlining, ReverseOutliningHandle } from "./reverse-outlining";
 import { Usage } from "./usage";
 import { Button } from "../ui/button";
@@ -72,6 +69,8 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
   const reverseOutliningRef = useRef<ReverseOutliningHandle>(null);
   // Reference Panel 的 ref
   const referencePanelRef = useRef<ReferencePanelHandle>(null);
+  // AI Analysis 的 ref
+  const aiAnalysisRef = useRef<AIAnalysisHandle>(null);
 
   // 暴露方法給父元件
   useImperativeHandle(ref, () => ({
@@ -217,6 +216,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
       case "ai-analysis":
         return (
           <AIAnalysis
+            ref={aiAnalysisRef}
             writingId={currentWritingIdValue}
             initialResults={toolState["ai-analysis"]}
             onResultsChange={(results) => {
@@ -364,7 +364,15 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
                     variant={button.variant}
                     icon={button.icon}
                     onClick={() => {
-                      // UI only, 功能之後再實作
+                      // 如果是 AI Analysis 的 Report 按鈕
+                      if (
+                        currentTool === "ai-analysis" &&
+                        button.label === "Report"
+                      ) {
+                        if (aiAnalysisRef.current) {
+                          aiAnalysisRef.current.openReportModal();
+                        }
+                      }
                     }}
                   >
                     {button.label}
