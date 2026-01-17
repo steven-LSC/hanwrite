@@ -15,9 +15,9 @@ const mockWritings: Record<string, Writing> = {
     title: "부산 여행",
     content: `지난 여름방학에 나는 부모님과 동생과 함께 부산 여행을 다녀왔다. 오랜만에 가족이 모두 모여서 여행을 가게 되어 출발하기 전부터 설레는 마음이 가득했다. 부모님은 예전에 부산에 가 본 적이 있으셨지만, 나는 처음이라 더 기대가 컸다.
 
-부산에 도착한 첫날 우리는 해운대를 찾았다. 해운대는 바다가 넓고 파도가 시원하게 밀려와서 산책하기에 아주 좋았다. 동생이랑 바닷가를 걸으면서 파도를 구경했다. 그 순간을 사진으로 남겼다. 부모님도 우리 모습을 보며 즐거워하셨다. 해운대 근처에는 많은 사람들이 있었지만 바람이 시원해서 전혀 불편하지 않았다.
+부산에 도착한 첫날 우리는 해운대를 찾았다. 해운대는 바다가 넓고 파도가 시원하게 밀려와서 산책하기에 아주 좋았다. 동생이랑 바닷가를 걸으면서 파도를 구경했다. 그 순간을 사진로 남겼다. 부모님도 우리 모습을 보며 즐거워하셨다. 해운대 근처에는 많은 사람들이 있었지만 바람이 시원해서 전혀 불편하지 않았다.
 
-둘째 날에는 자갈치 시장에 갔다. 시장 안에는 다양한 해산물 가게들이 줄지어 있었고, 활기찬 분위기가 가득했다. 우리는 시장을 구경하면서 쇼핑을 하고, 신선한 회와 해산물을 맛보았다. 특히 부모님은 부산 특유의 음식 맛에 크게 만족하셨고, 나와 동생도 새로운 음식을 경험하면서 즐거운 시간을 보냈다.
+둘째 날에는 자갈치 시장에 갔다. 시장 안에는 다양한 해사물 가게들이 줄지어 있었고, 활기찬 분위기가 가득했다. 우리는 시장을 구경하면서 쇼핑을 하고, 신선한 회와 해산물을 맛보았다. 특히 부모님은 부산 특유의 음식 맛에 크게 만족하셨고, 나와 동생도 새로운 음식을 경험하면서 즐거운 시간을 보냈다.
 
 이번 부산 여행은 가족 모두에게 특별한 추억이 되었다. 해운대의 파도 소리, 시장의 활기찬 분위기, 그리고 가족과 함께한 웃음이 아직도 마음속에 선명하다. 비록 짧은 시간이었지만, 부산에서의 경험은 오래도록 기억에 남을 것 같다.`,
     characterCount: 603,
@@ -354,7 +354,7 @@ export async function getErrorDetectionResults(
       data: {
         grammarName: "Noun + (으)로",
         originalError: "사진로",
-        errorPosition: { start: 0, end: 3 }, // 假設位置
+        errorPosition: { start: 228, end: 231 }, // "그 순간을 사진로 남겼다" 中的 "사진로"
         correctSentence: "사진으로",
         explanation: "Indicates means or material used for an action.",
         example: "사잇길로 가면 해운대에 금방 도착한다.",
@@ -365,13 +365,14 @@ export async function getErrorDetectionResults(
       data: {
         correctWord: "해산물",
         wrongWord: "해사물",
-        errorPosition: { start: 0, end: 3 }, // 假設位置
+        errorPosition: { start: 335, end: 338 }, // "다양한 해사물 가게들이" 中的 "해사물"
         translation: "seafood eaten as food",
         synonyms: ["수산물 (marine product)"],
         relatedWords: ["생선 (fish)", "조개 (clam)", "식당 (restaurant)"],
         antonyms: [],
         partOfSpeech: "noun",
         example: "부산에 가면 신선한 해산물을 꼭 먹어야 한다.",
+        searchKeyword: "seafood",
       },
     },
   ];

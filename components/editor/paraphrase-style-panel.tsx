@@ -5,14 +5,14 @@ import { ParaphraseStyle } from "@/lib/types";
 
 interface ParaphraseStylePanelProps {
   onSelectStyle: (style: ParaphraseStyle) => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  editorRef: React.RefObject<HTMLDivElement | null>;
   selectionStart: number;
   selectionEnd: number;
 }
 
 export function ParaphraseStylePanel({
   onSelectStyle,
-  textareaRef,
+  editorRef,
   selectionStart,
   selectionEnd,
 }: ParaphraseStylePanelProps) {
@@ -30,16 +30,7 @@ export function ParaphraseStylePanel({
           key={style.value}
           onClick={() => {
             onSelectStyle(style.value);
-            // 保持反白效果
-            setTimeout(() => {
-              if (textareaRef.current) {
-                textareaRef.current.focus();
-                textareaRef.current.setSelectionRange(
-                  selectionStart,
-                  selectionEnd
-                );
-              }
-            }, 0);
+            // 保持反白效果（由 Editor 元件處理）
           }}
           className="flex items-center gap-[5px] px-[10px] py-[5px] rounded-[5px] hover:bg-(--color-bg-secondary) transition-colors duration-200"
         >

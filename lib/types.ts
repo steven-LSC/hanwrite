@@ -100,6 +100,7 @@ export interface VocabError {
   antonyms: string[]; // 反義詞
   partOfSpeech: string; // 詞性
   example: string; // 例句
+  searchKeyword?: string; // 搜尋圖片的英文關鍵字（僅用於名詞）
 }
 
 export type ErrorDetectionResult = Array<

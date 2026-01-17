@@ -10,6 +10,7 @@ import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { FocusProvider, useFocus, SidebarRef } from "./focus-context";
 import { UnsavedProvider, useUnsaved } from "./unsaved-context";
+import { EditorProvider } from "./editor-context";
 import { RecentWriting } from "@/lib/types";
 import { getRecentWritings } from "@/lib/data/writings";
 import { clearAuthCookie } from "@/lib/auth";
@@ -228,7 +229,9 @@ export default function MainLayout({
   return (
     <FocusProvider>
       <UnsavedProvider>
-        <MainLayoutContent>{children}</MainLayoutContent>
+        <EditorProvider>
+          <MainLayoutContent>{children}</MainLayoutContent>
+        </EditorProvider>
       </UnsavedProvider>
     </FocusProvider>
   );

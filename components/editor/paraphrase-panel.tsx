@@ -9,7 +9,7 @@ interface ParaphrasePanelProps {
   selectedStyle: ParaphraseStyle | null;
   onDiscard: () => void;
   onReplace: (enabledChanges: Set<number>) => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  editorRef: React.RefObject<HTMLDivElement | null>;
   selectionStart: number;
   selectionEnd: number;
 }
@@ -19,7 +19,7 @@ export function ParaphrasePanel({
   selectedStyle,
   onDiscard,
   onReplace,
-  textareaRef,
+  editorRef,
   selectionStart,
   selectionEnd,
 }: ParaphrasePanelProps) {
@@ -140,7 +140,7 @@ export function ParaphrasePanel({
 
   return (
     <div
-      className="bg-white border border-(--color-border) rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] p-[20px] flex flex-col gap-[10px] w-[340px] max-h-[300px] overflow-y-auto"
+      className="bg-white border border-(--color-border) rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] p-[20px] flex flex-col gap-[10px] w-[340px] h-[300px]"
       onMouseDown={preventBlur}
     >
       {/* 頂部：選擇的風格 */}
@@ -153,70 +153,73 @@ export function ParaphrasePanel({
         </span>
       </div>
 
-      {/* 預覽文字區（highlight 修改部分）*/}
-      <p className="font-medium text-[14px] text-(--color-text-secondary) whitespace-pre-wrap">
-        {highlightSegments.map((segment, index) =>
-          segment.isHighlight ? (
-            <span key={index} className="bg-[#e2e8f0] rounded-[2px] px-[2px]">
-              {segment.text}
-            </span>
-          ) : (
-            <span key={index}>{segment.text}</span>
-          )
-        )}
-      </p>
+      {/* 中間可滾動區域 */}
+      <div className="flex flex-col gap-[10px] overflow-y-auto flex-1 scrollbar-hide min-h-0">
+        {/* 預覽文字區（highlight 修改部分）*/}
+        <p className="font-medium text-[14px] text-(--color-text-secondary) whitespace-pre-wrap">
+          {highlightSegments.map((segment, index) =>
+            segment.isHighlight ? (
+              <span key={index} className="bg-[#e2e8f0] rounded-[2px] px-[2px]">
+                {segment.text}
+              </span>
+            ) : (
+              <span key={index}>{segment.text}</span>
+            )
+          )}
+        </p>
 
-      {/* Dropdown 修改項目清單 */}
-      <div className="flex flex-col gap-[5px] shrink-0">
-        <button
-          onClick={() => setShowDropdown(!showDropdown)}
-          className="flex items-center gap-[5px] text-left"
-        >
-          <p className="font-medium text-[12px] text-(--color-text-secondary)">
-            Show explanation and partial change
-          </p>
-          <span
-            className={`material-symbols-rounded text-[20px] text-(--color-text-secondary) transition-transform ${
-              showDropdown ? "rotate-180" : ""
-            }`}
+        {/* Dropdown 修改項目清單 */}
+        <div className="flex flex-col gap-[5px]">
+          <button
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="flex items-center gap-[5px] text-left"
           >
-            expand_more
-          </span>
-        </button>
+            <p className="font-medium text-[12px] text-(--color-text-secondary)">
+              Show explanation and partial change
+            </p>
+            <span
+              className={`material-symbols-rounded text-[20px] text-(--color-text-secondary) transition-transform ${
+                showDropdown ? "rotate-180" : ""
+              }`}
+            >
+              expand_more
+            </span>
+          </button>
 
-        {showDropdown && (
-          <div className="flex flex-col gap-[5px]">
-            {result.changes.map((change, index) => (
-              <label
-                key={index}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // 如果點擊的是 checkbox，不處理（讓 checkbox 的 onChange 處理）
-                  if ((e.target as HTMLElement).tagName === "INPUT") {
-                    return;
-                  }
-                  handleToggleChange(index);
-                }}
-                className="flex items-center gap-[5px] p-[5px] rounded-[5px] cursor-pointer hover:bg-[#f8fafc] transition-colors"
-              >
-                <input
-                  type="checkbox"
-                  checked={enabledChanges.has(index)}
-                  onChange={(e) => {
+          {showDropdown && (
+            <div className="flex flex-col gap-[5px]">
+              {result.changes.map((change, index) => (
+                <label
+                  key={index}
+                  onClick={(e) => {
                     e.stopPropagation();
+                    // 如果點擊的是 checkbox，不處理（讓 checkbox 的 onChange 處理）
+                    if ((e.target as HTMLElement).tagName === "INPUT") {
+                      return;
+                    }
                     handleToggleChange(index);
                   }}
-                  className="shrink-0 w-[12px] h-[12px] cursor-pointer rounded-[3px] accent-[#475569] transition-all"
-                />
-                <p className="flex-1 font-medium text-[12px] text-(--color-text-secondary)">
-                  {change.revised}{" "}
-                  {change.original === change.revised ? "changed" : "added"} (
-                  {change.explanation})
-                </p>
-              </label>
-            ))}
-          </div>
-        )}
+                  className="flex items-center gap-[5px] p-[5px] rounded-[5px] cursor-pointer hover:bg-[#f8fafc] transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={enabledChanges.has(index)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleToggleChange(index);
+                    }}
+                    className="shrink-0 w-[12px] h-[12px] cursor-pointer rounded-[3px] accent-[#475569] transition-all"
+                  />
+                  <p className="flex-1 font-medium text-[12px] text-(--color-text-secondary)">
+                    {change.revised}{" "}
+                    {change.original === change.revised ? "changed" : "added"} (
+                    {change.explanation})
+                  </p>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 底部按鈕 */}

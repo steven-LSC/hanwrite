@@ -21,7 +21,7 @@ export function ExpansionHintPanel({
   return (
     <div className="bg-white border border-(--color-border) rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] p-[20px] flex flex-col gap-[10px] w-[340px] max-h-[500px]">
       {/* 標題區 */}
-      <div className="flex items-center gap-[5px] px-[10px] rounded-[10px] shrink-0">
+      <div className="flex items-center gap-[5px] rounded-[10px] shrink-0">
         <span className="material-symbols-rounded text-[20px] text-(--color-text-secondary)">
           lightbulb
         </span>
@@ -31,15 +31,15 @@ export function ExpansionHintPanel({
       </div>
 
       {/* Hints 列表 - 可滾動 */}
-      <div className="flex flex-col gap-[5px] overflow-y-auto flex-1">
+      <div className="flex flex-col gap-[5px] overflow-y-auto flex-1 scrollbar-hide">
         {hints.map((hint, index) => (
           <button
             key={index}
             onClick={() => onSelectHint(index)}
-            className={`flex flex-col gap-[5px] p-[10px] rounded-[10px] text-left transition-colors duration-200 ${
+            className={`flex flex-col gap-[5px] p-[10px] rounded-[10px] text-left transition-colors duration-200 border ${
               selectedIndex === index
-                ? "bg-(--color-bg-secondary) border border-(--color-border)"
-                : "hover:bg-(--color-bg-secondary)"
+                ? "bg-(--color-bg-secondary) border-(--color-border)"
+                : "border-transparent hover:bg-(--color-bg-secondary)"
             }`}
           >
             {/* 說明文字 */}

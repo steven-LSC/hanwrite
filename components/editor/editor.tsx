@@ -23,6 +23,7 @@ import {
   ParaphraseStyle,
 } from "@/lib/types";
 import { useFocus } from "@/app/(main)/focus-context";
+import { useEditor, EditorHighlightRef, ErrorPosition } from "@/app/(main)/editor-context";
 
 interface EditorProps {
   initialTitle?: string;
@@ -43,11 +44,13 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     ref
   ) => {
     const { isFocusMode, toggleFocus } = useFocus();
+    const { editorHighlightRef } = useEditor();
     const [title, setTitle] = useState(initialTitle);
     const [content, setContent] = useState(initialContent);
     const [isSaving, setIsSaving] = useState(false);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const editorRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+    const highlightRef = useRef<{ start: number; end: number; color: string } | null>(null);
 
     // Context Menu 相關狀態
     const [showContextMenu, setShowContextMenu] = useState(false);
@@ -77,10 +80,262 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     useEffect(() => {
       setTitle(initialTitle);
       setContent(initialContent);
+      // 同步 contentEditable div 的內容（將 \n 轉換為 <br>）
+      if (editorRef.current) {
+        const currentText = getTextContent(editorRef.current);
+        if (currentText !== initialContent) {
+          // 保存當前的選取範圍
+          const selection = window.getSelection();
+          const hadFocus = document.activeElement === editorRef.current;
+          let savedRange: Range | null = null;
+          
+          if (selection && selection.rangeCount > 0 && editorRef.current.contains(selection.anchorNode)) {
+            savedRange = selection.getRangeAt(0).cloneRange();
+          }
+          
+          // 將 \n 轉換為 <br> 後設定到 contentEditable
+          editorRef.current.innerHTML = textToHtml(initialContent);
+          
+          // 恢復選取範圍（如果之前有選取且焦點在編輯器上）
+          if (savedRange && selection && hadFocus) {
+            try {
+              // 檢查範圍是否仍然有效
+              if (editorRef.current.contains(savedRange.startContainer)) {
+                selection.removeAllRanges();
+                selection.addRange(savedRange);
+              }
+            } catch (e) {
+              // 如果恢復失敗，至少恢復焦點
+              if (editorRef.current) {
+                editorRef.current.focus();
+              }
+            }
+          }
+        }
+      }
     }, [initialTitle, initialContent]);
+
 
     // 即時計算字數
     const characterCount = content.length;
+
+    // Helper 函數：取得純文字內容（將 HTML 換行轉換回 \n）
+    const getTextContent = (element: HTMLElement): string => {
+      // 複製元素以避免修改原始 DOM
+      const clone = element.cloneNode(true) as HTMLElement;
+      
+      // 將所有 <br> 標籤轉換為換行符號
+      const brElements = clone.querySelectorAll("br");
+      brElements.forEach((br) => {
+        const textNode = document.createTextNode("\n");
+        br.parentNode?.replaceChild(textNode, br);
+      });
+      
+      // 將所有 <div> 和 <p> 標籤轉換為換行符號（除了第一個）
+      const blockElements = clone.querySelectorAll("div, p");
+      blockElements.forEach((block, index) => {
+        if (index > 0) {
+          const textNode = document.createTextNode("\n");
+          block.parentNode?.insertBefore(textNode, block);
+        }
+      });
+      
+      // 取得純文字內容
+      return clone.textContent || "";
+    };
+    
+    // Helper 函數：將純文字轉換為 HTML（將 \n 轉換為 <br>）
+    const textToHtml = (text: string): string => {
+      // 將 \n 轉換為 <br>
+      return text.replace(/\n/g, "<br>");
+    };
+
+    // Helper 函數：取得選取範圍
+    const getSelectionRange = (
+      element: HTMLElement
+    ): { start: number; end: number } | null => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return null;
+
+      const range = selection.getRangeAt(0);
+      if (!element.contains(range.commonAncestorContainer)) return null;
+
+      const preCaretRange = range.cloneRange();
+      preCaretRange.selectNodeContents(element);
+      preCaretRange.setEnd(range.startContainer, range.startOffset);
+
+      const start = preCaretRange.toString().length;
+      const end = start + range.toString().length;
+
+      return { start, end };
+    };
+
+    // Helper 函數：設定選取範圍
+    const setSelectionRange = (
+      element: HTMLElement,
+      start: number,
+      end: number
+    ): void => {
+      const selection = window.getSelection();
+      if (!selection) return;
+
+      const range = document.createRange();
+      let charCount = 0;
+      let foundStart = false;
+      let foundEnd = false;
+      let startNode: Node | null = null;
+      let startOffset = 0;
+      let endNode: Node | null = null;
+      let endOffset = 0;
+
+      // 自定義遍歷函數，同時處理文字節點和 <br> 標籤
+      const traverse = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const textNode = node as Text;
+          const nodeLength = textNode.textContent?.length || 0;
+
+          if (!foundStart && charCount + nodeLength >= start) {
+            foundStart = true;
+            startNode = textNode;
+            startOffset = start - charCount;
+          }
+
+          if (!foundEnd && charCount + nodeLength >= end) {
+            foundEnd = true;
+            endNode = textNode;
+            endOffset = end - charCount;
+            return true; // 停止遍歷
+          }
+
+          charCount += nodeLength;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const elementNode = node as HTMLElement;
+          // 如果是 <br> 標籤，視為一個換行符號（一個字元）
+          if (elementNode.tagName === "BR") {
+            // charCount 是 <br> 之前的位置，charCount + 1 是 <br> 之後的位置
+            // 先檢查 start 是否在這個 <br> 的位置
+            if (!foundStart) {
+              if (start === charCount) {
+                // start 正好在 <br> 之前
+                foundStart = true;
+                startNode = elementNode;
+                startOffset = 0;
+              } else if (start === charCount + 1) {
+                // start 正好在 <br> 之後
+                foundStart = true;
+                startNode = elementNode;
+                startOffset = 1;
+              }
+            }
+
+            // 檢查 end 是否在這個 <br> 的位置
+            if (!foundEnd) {
+              if (end === charCount) {
+                foundEnd = true;
+                endNode = elementNode;
+                endOffset = 0;
+                if (foundStart) return true; // 停止遍歷
+              } else if (end === charCount + 1) {
+                foundEnd = true;
+                endNode = elementNode;
+                endOffset = 1;
+                if (foundStart) return true; // 停止遍歷
+              } else if (end < charCount) {
+                // end 在 <br> 之前（這不應該發生，但為了安全起見）
+                foundEnd = true;
+                endNode = elementNode;
+                endOffset = 0;
+                return true; // 停止遍歷
+              }
+            }
+
+            // 如果都找到了，停止遍歷
+            if (foundStart && foundEnd) {
+              return true;
+            }
+
+            charCount += 1; // <br> 視為一個字元
+          } else {
+            // 遞迴遍歷子節點
+            for (let i = 0; i < elementNode.childNodes.length; i++) {
+              if (traverse(elementNode.childNodes[i])) {
+                return true; // 如果子節點返回 true，停止遍歷
+              }
+            }
+          }
+        }
+        return false;
+      };
+
+      traverse(element);
+
+      if (foundStart && foundEnd && startNode && endNode) {
+        try {
+          // 處理 <br> 標籤的情況
+          if (startNode.nodeType === Node.ELEMENT_NODE && (startNode as HTMLElement).tagName === "BR") {
+            if (startOffset === 0) {
+              range.setStartBefore(startNode);
+            } else {
+              range.setStartAfter(startNode);
+            }
+          } else {
+            range.setStart(startNode, Math.min(startOffset, (startNode as Text).textContent?.length || 0));
+          }
+
+          if (endNode.nodeType === Node.ELEMENT_NODE && (endNode as HTMLElement).tagName === "BR") {
+            if (endOffset === 0) {
+              range.setEndBefore(endNode);
+            } else {
+              range.setEndAfter(endNode);
+            }
+          } else {
+            range.setEnd(endNode, Math.min(endOffset, (endNode as Text).textContent?.length || 0));
+          }
+
+          selection.removeAllRanges();
+          selection.addRange(range);
+        } catch (e) {
+          // 如果設定失敗，嘗試設定到元素末尾
+          try {
+            range.selectNodeContents(element);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          } catch (e2) {
+            // 如果還是失敗，至少確保焦點在元素上
+            element.focus();
+          }
+        }
+      } else if (foundStart && startNode) {
+        // 如果只找到開始位置，設定游標到該位置
+        try {
+          if (startNode.nodeType === Node.ELEMENT_NODE && (startNode as HTMLElement).tagName === "BR") {
+            if (startOffset === 0) {
+              range.setStartBefore(startNode);
+            } else {
+              range.setStartAfter(startNode);
+            }
+          } else {
+            range.setStart(startNode, Math.min(startOffset, (startNode as Text).textContent?.length || 0));
+          }
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        } catch (e) {
+          element.focus();
+        }
+      } else {
+        // 如果找不到位置，設定游標到元素末尾
+        try {
+          range.selectNodeContents(element);
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        } catch (e) {
+          element.focus();
+        }
+      }
+    };
 
     const handleSave = async () => {
       if (onSave && !isSaving) {
@@ -93,6 +348,114 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       }
     };
 
+    // Highlight 單個錯誤文字（會清除之前的 highlight）
+    const highlightError = (position: { start: number; end: number }, errorType: "grammar" | "vocab") => {
+      if (!editorRef.current) return;
+      
+      // 清除之前的 highlight
+      clearHighlight();
+      
+      // Highlight 單個錯誤
+      highlightSingleError(position, errorType);
+    };
+
+    // Highlight 單個錯誤（不清除之前的 highlight，用於 showAll）
+    const highlightSingleError = (position: { start: number; end: number }, errorType: "grammar" | "vocab") => {
+      if (!editorRef.current) return;
+      
+      const color = errorType === "grammar" ? "#DBEAFE" : "#FEF08A";
+      
+      // 建立選取範圍
+      const selection = window.getSelection();
+      if (!selection) return;
+      
+      // 設定選取範圍
+      setSelectionRange(editorRef.current, position.start, position.end);
+      
+      // 取得選取範圍
+      if (selection.rangeCount === 0) return;
+      const range = selection.getRangeAt(0);
+      
+      // 檢查這個範圍是否已經被 highlight 了（避免重複 highlight）
+      const rangeText = range.toString();
+      if (!rangeText) return;
+      
+      // 建立一個 span 來包裹 highlight 的文字
+      const span = document.createElement("span");
+      span.style.backgroundColor = color;
+      span.style.padding = "2px 0";
+      span.setAttribute("data-error-highlight", "true");
+      
+      try {
+        // 嘗試使用 surroundContents（適用於簡單情況）
+        range.surroundContents(span);
+      } catch (e) {
+        // 如果 surroundContents 失敗（範圍跨越多個節點），使用另一種方法
+        try {
+          const contents = range.extractContents();
+          span.appendChild(contents);
+          range.insertNode(span);
+        } catch (e2) {
+          // 如果還是失敗，使用最簡單的方法：選取文字並加上背景色標記
+          const text = range.toString();
+          if (text) {
+            const textNode = document.createTextNode(text);
+            span.appendChild(textNode);
+            range.deleteContents();
+            range.insertNode(span);
+          }
+        }
+      }
+      
+      // 清除選取，但保留 highlight
+      selection.removeAllRanges();
+    };
+
+    // Highlight 多個錯誤（用於 showAll）
+    const highlightAllErrors = (errors: ErrorPosition[]) => {
+      if (!editorRef.current) return;
+      
+      // 清除之前的 highlight
+      clearHighlight();
+      
+      // 從後往前 highlight，避免位置偏移
+      const sortedErrors = [...errors].sort((a, b) => b.position.start - a.position.start);
+      
+      sortedErrors.forEach((error) => {
+        highlightSingleError(error.position, error.errorType);
+      });
+    };
+
+    // 清除 highlight
+    const clearHighlight = () => {
+      if (!editorRef.current) return;
+      
+      // 移除所有 highlight span
+      const highlightSpans = editorRef.current.querySelectorAll("span[data-error-highlight='true']");
+      highlightSpans.forEach((span) => {
+        const parent = span.parentNode;
+        if (parent) {
+          // 用文字節點替換 span
+          const textNode = document.createTextNode(span.textContent || "");
+          parent.replaceChild(textNode, span);
+          parent.normalize(); // 合併相鄰的文字節點
+        }
+      });
+      
+      highlightRef.current = null;
+    };
+
+    // 暴露 highlight 方法給 context
+    useImperativeHandle(editorHighlightRef, () => ({
+      highlightError: (position: { start: number; end: number }, errorType: "grammar" | "vocab") => {
+        highlightError(position, errorType);
+      },
+      highlightAllErrors: (errors: ErrorPosition[]) => {
+        highlightAllErrors(errors);
+      },
+      clearHighlight,
+    }));
+
     // 暴露方法給父元件
     useImperativeHandle(ref, () => ({
       getTitle: () => title,
@@ -100,14 +463,32 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       triggerSave: handleSave,
     }));
 
+    // 處理文字輸入
+    const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+      const textContent = getTextContent(e.currentTarget);
+      // 只有在內容真的改變時才更新 state，避免不必要的重新渲染
+      if (textContent !== content) {
+        setContent(textContent);
+        // 當內容改變時，清除 highlight（因為位置可能已經改變）
+        if (highlightRef.current) {
+          clearHighlight();
+        }
+      }
+    };
+
     // 處理文字反白
     const handleMouseUp = (e: React.MouseEvent) => {
-      const textarea = textareaRef.current;
-      if (!textarea) return;
+      const editor = editorRef.current;
+      if (!editor) return;
 
       setTimeout(() => {
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
+        const range = getSelectionRange(editor);
+        if (!range) {
+          setShowContextMenu(false);
+          return;
+        }
+
+        const { start, end } = range;
         const selected = content.substring(start, end);
 
         // 如果有選取文字，顯示選單
@@ -125,8 +506,8 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
           setShowContextMenu(true);
 
           // 保持反白效果
-          textarea.focus();
-          textarea.setSelectionRange(start, end);
+          editor.focus();
+          setSelectionRange(editor, start, end);
         } else {
           setShowContextMenu(false);
         }
@@ -176,14 +557,19 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
     // 當選取文字被刪除或改變時，關閉選單
     useEffect(() => {
-      if (!showContextMenu || !textareaRef.current) return;
+      if (!showContextMenu || !editorRef.current) return;
 
       const checkSelection = () => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
+        const editor = editorRef.current;
+        if (!editor) return;
 
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
+        const range = getSelectionRange(editor);
+        if (!range) {
+          setShowContextMenu(false);
+          return;
+        }
+
+        const { start, end } = range;
         const selected = content.substring(start, end);
 
         // 如果沒有選取文字或選取文字與之前不同，關閉選單
@@ -248,9 +634,9 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       setSelectedHintIndex(null);
 
       // 保持反白效果
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(selectionStart, selectionEnd);
+      if (editorRef.current) {
+        editorRef.current.focus();
+        setSelectionRange(editorRef.current, selectionStart, selectionEnd);
       }
 
       try {
@@ -268,9 +654,9 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       setMenuStage("paraphrase-style");
 
       // 保持反白效果
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(selectionStart, selectionEnd);
+      if (editorRef.current) {
+        editorRef.current.focus();
+        setSelectionRange(editorRef.current, selectionStart, selectionEnd);
       }
     };
 
@@ -281,9 +667,9 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       setIsLoadingParaphrase(true);
 
       // 保持反白效果
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(selectionStart, selectionEnd);
+      if (editorRef.current) {
+        editorRef.current.focus();
+        setSelectionRange(editorRef.current, selectionStart, selectionEnd);
       }
 
       try {
@@ -303,7 +689,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
     // 套用 Paraphrase 修改到編輯器
     const handleReplaceParaphrase = (enabledChanges: Set<number>) => {
-      if (!paraphraseResult || !textareaRef.current) return;
+      if (!paraphraseResult || !editorRef.current) return;
 
       // 取得要套用的修改（按照索引排序）
       const changesToApply = paraphraseResult.changes
@@ -333,12 +719,17 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       setContent(newContent);
       setShowContextMenu(false);
 
+      // 更新 contentEditable div 的內容（將 \n 轉換為 <br>）
+      if (editorRef.current) {
+        editorRef.current.innerHTML = textToHtml(newContent);
+      }
+
       // 將游標移到替換文字的後面
       setTimeout(() => {
-        if (textareaRef.current) {
+        if (editorRef.current) {
           const newPosition = selectionStart + selectedContent.length;
-          textareaRef.current.focus();
-          textareaRef.current.setSelectionRange(newPosition, newPosition);
+          editorRef.current.focus();
+          setSelectionRange(editorRef.current, newPosition, newPosition);
         }
       }, 0);
     };
@@ -353,15 +744,15 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       setSelectedHintIndex(index);
 
       // 保持反白效果
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(selectionStart, selectionEnd);
+      if (editorRef.current) {
+        editorRef.current.focus();
+        setSelectionRange(editorRef.current, selectionStart, selectionEnd);
       }
     };
 
     // 插入選中的 Hint
     const handleInsertHint = () => {
-      if (selectedHintIndex === null || !textareaRef.current) return;
+      if (selectedHintIndex === null || !editorRef.current) return;
 
       const selectedHint = hints[selectedHintIndex];
       // 移除換行符號，只保留單行文字，並在前面加一個空格
@@ -377,12 +768,17 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       setContent(newContent);
       setShowContextMenu(false);
 
+      // 更新 contentEditable div 的內容（將 \n 轉換為 <br>）
+      if (editorRef.current) {
+        editorRef.current.innerHTML = textToHtml(newContent);
+      }
+
       // 將游標移到插入文字的後面
       setTimeout(() => {
-        if (textareaRef.current) {
+        if (editorRef.current) {
           const newPosition = selectionEnd + textToInsert.length;
-          textareaRef.current.focus();
-          textareaRef.current.setSelectionRange(newPosition, newPosition);
+          editorRef.current.focus();
+          setSelectionRange(editorRef.current, newPosition, newPosition);
         }
       }, 0);
     };
@@ -418,16 +814,23 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
                 </p>
               </div>
             )}
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onMouseUp={handleMouseUp}
-              placeholder="Add text to start writing"
-              className="w-full h-full px-[40px] py-[40px] text-[16px] text-(--color-text-primary) leading-[1.8] outline-none resize-none"
-              style={{ fontFamily: "Pretendard, sans-serif" }}
-              disabled={isLoading}
-            />
+            <div className="relative w-full h-full">
+              {!content.trim() && (
+                <div className="absolute top-[40px] left-[40px] text-[16px] text-(--color-text-tertiary) pointer-events-none">
+                  Add text to start writing
+                </div>
+              )}
+              <div
+                ref={editorRef}
+                contentEditable
+                onInput={handleInput}
+                onMouseUp={handleMouseUp}
+                suppressContentEditableWarning
+                suppressHydrationWarning
+                className="w-full h-full px-[40px] py-[40px] text-[16px] text-(--color-text-primary) leading-[1.8] outline-none overflow-y-auto"
+                style={{ fontFamily: "Pretendard, sans-serif" }}
+              />
+            </div>
           </div>
 
           {/* 底部欄 - 固定高度 */}
@@ -498,7 +901,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
             {menuStage === "paraphrase-style" && (
               <ParaphraseStylePanel
                 onSelectStyle={handleSelectStyle}
-                textareaRef={textareaRef}
+                editorRef={editorRef}
                 selectionStart={selectionStart}
                 selectionEnd={selectionEnd}
               />
@@ -518,7 +921,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
                     selectedStyle={selectedStyle}
                     onDiscard={handleDiscardParaphrase}
                     onReplace={handleReplaceParaphrase}
-                    textareaRef={textareaRef}
+                    editorRef={editorRef}
                     selectionStart={selectionStart}
                     selectionEnd={selectionEnd}
                   />
