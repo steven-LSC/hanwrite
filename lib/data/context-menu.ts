@@ -12,7 +12,7 @@ export async function getExpansionHints(
   selectedText: string
 ): Promise<ExpansionHint[]> {
   // 模擬 API 延遲
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 
   // 回傳三個假的 Expansion Hints
   return [
@@ -43,7 +43,7 @@ export async function getParaphraseResult(
   style: ParaphraseStyle
 ): Promise<ParaphraseResult> {
   // 模擬 API 延遲
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 
   // 根據不同風格回傳不同的假資料
   const mockResults: Record<ParaphraseStyle, ParaphraseResult> = {

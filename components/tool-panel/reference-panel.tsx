@@ -100,19 +100,19 @@ export const ReferencePanel = forwardRef<
   // 預處理選中的心智圖 nodes，確保位置正確計算
   const preparedNodes = selectedMindmap
     ? prepareMindmapNodes(
-        selectedMindmap.nodes,
-        () => {}, // 預覽模式下不需要 label change callback
-        () => {} // 預覽模式下不需要 add child callback
-      )
+      selectedMindmap.nodes,
+      () => { }, // 預覽模式下不需要 label change callback
+      () => { } // 預覽模式下不需要 add child callback
+    )
     : [];
 
   // 預處理已載入的心智圖 nodes
   const loadedPreparedNodes = loadedData?.mindmap
     ? prepareMindmapNodes(
-        loadedData.mindmap.nodes,
-        () => {},
-        () => {}
-      )
+      loadedData.mindmap.nodes,
+      () => { },
+      () => { }
+    )
     : [];
 
   // 處理 Load 按鈕點擊
@@ -153,7 +153,7 @@ export const ReferencePanel = forwardRef<
               <ReactFlowProvider key={loadedData.mindmap.id}>
                 <Mindmap
                   initialNodes={loadedPreparedNodes}
-                  onNodesChange={() => {}}
+                  onNodesChange={() => { }}
                 />
               </ReactFlowProvider>
             ) : (
@@ -185,8 +185,8 @@ export const ReferencePanel = forwardRef<
                         {section.type === "introduction"
                           ? "Introduction"
                           : section.type === "body"
-                          ? "Body"
-                          : "Conclusion"}
+                            ? "Body"
+                            : "Conclusion"}
                       </h4>
 
                       {/* 描述文字 */}
@@ -199,7 +199,7 @@ export const ReferencePanel = forwardRef<
                         <span className="text-[14px] text-(--color-text-secondary) font-medium">
                           {
                             section.keywordsOptions[
-                              section.selectedKeywordIndex
+                            section.selectedKeywordIndex
                             ]
                           }
                         </span>
@@ -271,11 +271,10 @@ export const ReferencePanel = forwardRef<
                     <button
                       key={map.id}
                       onClick={() => setSelectedMapId(map.id)}
-                      className={`w-full text-left px-[10px] py-[8px] rounded-[8px] text-[14px] transition-colors ${
-                        selectedMapId === map.id
+                      className={`w-full text-left px-[10px] py-[8px] rounded-[8px] text-[14px] transition-colors ${selectedMapId === map.id
                           ? "bg-blue-50 text-(--color-text-secondary) font-medium"
                           : "text-(--color-text-secondary) hover:bg-slate-50"
-                      }`}
+                        }`}
                     >
                       {map.title}
                     </button>
@@ -296,7 +295,7 @@ export const ReferencePanel = forwardRef<
                     <ReactFlowProvider key={selectedMapId}>
                       <Mindmap
                         initialNodes={preparedNodes}
-                        onNodesChange={() => {}}
+                        onNodesChange={() => { }}
                       />
                     </ReactFlowProvider>
                   ) : (
@@ -337,8 +336,8 @@ export const ReferencePanel = forwardRef<
                             {section.type === "introduction"
                               ? "Introduction"
                               : section.type === "body"
-                              ? "Body"
-                              : "Conclusion"}
+                                ? "Body"
+                                : "Conclusion"}
                           </h4>
 
                           {/* 描述文字 */}
@@ -351,7 +350,7 @@ export const ReferencePanel = forwardRef<
                             <span className="text-[14px] text-(--color-text-secondary) font-medium">
                               {
                                 section.keywordsOptions[
-                                  section.selectedKeywordIndex
+                                section.selectedKeywordIndex
                                 ]
                               }
                             </span>

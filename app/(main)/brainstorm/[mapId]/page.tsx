@@ -1,9 +1,10 @@
 "use client";
 
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { type Node, ReactFlowProvider } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
+import { StatusIndicator } from "@/components/ui/status-indicator";
 import { IdeaPartner } from "@/components/brainstorm/idea-partner";
 import { Mindmap } from "@/components/brainstorm/mindmap";
 import { OutlineGenerator } from "@/components/brainstorm/outline-generator";
@@ -98,7 +99,7 @@ const fetchMindmap = async (mapId: string): Promise<MindmapData> => {
         return;
       }
       resolve(data);
-    }, 200);
+    }, 2000); // 延長到 2 秒，方便測試效果
   });
 };
 
@@ -109,6 +110,7 @@ function BrainstormPageContent() {
 
   const [nodes, setNodes] = useState<Node[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [loadedMapId, setLoadedMapId] = useState<string | null>(null);
   const [currentTitle, setCurrentTitle] = useState("");
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -122,6 +124,7 @@ function BrainstormPageContent() {
   const [mapList, setMapList] = useState<MindmapData[]>(() =>
     Object.values(MOCK_MINDMAPS)
   );
+  const loadingRequestIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (mapId !== currentIdeaPartnerMapId) {
@@ -146,6 +149,14 @@ function BrainstormPageContent() {
     loadSavedOutline();
   }, [mapId]);
 
+  // 當 mapId 改變時，立即更新 currentTitle（從 mapList 中取得）
+  useEffect(() => {
+    const existingMap = mapList.find((map) => map.id === mapId);
+    if (existingMap) {
+      setCurrentTitle(existingMap.title);
+    }
+  }, [mapId, mapList]);
+
   const handleOutlineClose = async () => {
     setIsOutlineGeneratorOpen(false);
     // 重新載入 savedOutline（因為 Save 後可能已更新）
@@ -162,29 +173,43 @@ function BrainstormPageContent() {
       return;
     }
 
+    // 生成唯一的請求 ID，用於追蹤當前的載入請求
+    const requestId = `${mapId}-${Date.now()}`;
+    loadingRequestIdRef.current = requestId;
+
     setIsLoading(true);
     fetchMindmap(mapId)
       .then((data) => {
-        setNodes(data.nodes);
-        setMapList((prev) => {
-          const exists = prev.find((map) => map.id === data.id);
-          if (!exists) {
-            return [...prev, data];
-          }
-          return prev;
-        });
-        setCurrentTitle(() => {
-          const existing = mapList.find((map) => map.id === data.id);
-          return existing?.title || data.title;
-        });
-        setLoadedMapId(data.id);
+        // 只有當前的請求才更新 nodes，避免競態條件
+        if (loadingRequestIdRef.current === requestId) {
+          setNodes(data.nodes);
+          setMapList((prev) => {
+            const exists = prev.find((map) => map.id === data.id);
+            if (!exists) {
+              return [...prev, data];
+            }
+            return prev;
+          });
+          setCurrentTitle(() => {
+            const existing = mapList.find((map) => map.id === data.id);
+            return existing?.title || data.title;
+          });
+          setLoadedMapId(data.id);
+        }
       })
       .catch((error) => {
-        console.error("Failed to load mindmap:", error);
-        router.replace(`/brainstorm/${DEFAULT_MAP_ID}`);
+        // 只有當前的請求才處理錯誤
+        if (loadingRequestIdRef.current === requestId) {
+          console.error("Failed to load mindmap:", error);
+          router.replace(`/brainstorm/${DEFAULT_MAP_ID}`);
+        }
       })
       .finally(() => {
-        setIsLoading(false);
+        // 只有當前的請求才關閉 loading
+        if (loadingRequestIdRef.current === requestId) {
+          setIsLoading(false);
+          loadingRequestIdRef.current = null;
+        }
       });
   }, [mapId, loadedMapId, mapList, router]);
 
@@ -193,6 +218,15 @@ function BrainstormPageContent() {
     setMapList((prev) =>
       prev.map((map) => (map.id === mapId ? { ...map, title: nextTitle } : map))
     );
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    // 模擬儲存過程，延遲 1.5 秒
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    setIsSaving(false);
+    // 這裡可以添加實際的儲存邏輯
+    console.log("Saving mindmap:", { mapId, nodes, title: currentTitle });
   };
 
   const handleSelectMap = (nextId: string) => {
@@ -208,14 +242,6 @@ function BrainstormPageContent() {
 
   return (
     <div className="w-[1200px] h-[95%] bg-(--color-bg-card) my-auto rounded-[10px] border border-(--color-border) overflow-hidden relative">
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-(--color-bg-card)/80 z-10">
-          <p className="text-(--color-text-secondary) text-[14px]">
-            Loading...
-          </p>
-        </div>
-      )}
-
       {/* 左上角按鈕組 */}
       <div className="absolute left-[20px] top-[20px] flex items-center gap-[10px] z-20">
         {/* Mind Map 選單 */}
@@ -242,11 +268,10 @@ function BrainstormPageContent() {
                 <button
                   key={map.id}
                   onClick={() => handleSelectMap(map.id)}
-                  className={`w-full text-left px-[10px] py-[6px] rounded-[8px] text-[14px] transition-colors ${
-                    map.id === mapId
+                  className={`w-full text-left px-[10px] py-[6px] rounded-[8px] text-[14px] transition-colors ${map.id === mapId
                       ? "bg-slate-100 text-(--color-text-secondary)"
                       : "text-(--color-text-secondary) hover:bg-slate-100"
-                  }`}
+                    }`}
                 >
                   {map.title}
                 </button>
@@ -256,9 +281,11 @@ function BrainstormPageContent() {
         </div>
 
         {/* Save 按鈕 */}
-        <Button variant="primary" icon="save">
+        <Button variant="primary" icon="save" onClick={handleSave}>
           Save
         </Button>
+        {isSaving && <StatusIndicator text="saving" />}
+        {isLoading && <StatusIndicator text="loading" />}
       </div>
 
       {/* 右上角按鈕組 */}
@@ -267,9 +294,8 @@ function BrainstormPageContent() {
           {/* Outline 按鈕 */}
           <button
             onClick={() => setIsOutlineGeneratorOpen(true)}
-            className={`w-[135px] px-[10px] py-[5px] flex gap-[5px] items-center transition-colors ${
-              isOutlineGeneratorOpen ? "bg-slate-50" : "hover:bg-slate-50"
-            }`}
+            className={`w-[135px] px-[10px] py-[5px] flex gap-[5px] items-center transition-colors ${isOutlineGeneratorOpen ? "bg-slate-50" : "hover:bg-slate-50"
+              }`}
           >
             <span className="material-symbols-rounded text-(--color-text-secondary) text-[20px]">
               article
@@ -282,9 +308,8 @@ function BrainstormPageContent() {
           {/* Idea Partner 按鈕 */}
           <button
             onClick={() => setIsIdeaPartnerOpen((prev) => !prev)}
-            className={`w-[135px] px-[10px] py-[5px] flex gap-[5px] items-center transition-colors ${
-              isIdeaPartnerOpen ? "bg-slate-50" : "hover:bg-slate-50"
-            }`}
+            className={`w-[135px] px-[10px] py-[5px] flex gap-[5px] items-center transition-colors ${isIdeaPartnerOpen ? "bg-slate-50" : "hover:bg-slate-50"
+              }`}
           >
             <span className="material-symbols-rounded text-(--color-text-secondary) text-[20px]">
               wb_incandescent

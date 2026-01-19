@@ -1,6 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Loading } from "@/components/ui/loading";
 
 const IDEA_PARTNER_CARDS = [
   {
@@ -28,6 +30,18 @@ interface IdeaPartnerProps {
 }
 
 export function IdeaPartner({ isOpen, hasScanned, onScan }: IdeaPartnerProps) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (hasScanned) {
+      setIsLoading(true);
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [hasScanned]);
+
   if (!isOpen) return null;
 
   return (
@@ -41,6 +55,8 @@ export function IdeaPartner({ isOpen, hasScanned, onScan }: IdeaPartnerProps) {
             Scan
           </Button>
         </div>
+      ) : isLoading ? (
+        <Loading text="Scanning mind map..." />
       ) : (
         <div className="flex flex-col gap-[10px] p-[20px]">
           <div className="w-full flex flex-col gap-[10px]">

@@ -108,6 +108,14 @@ export type ErrorDetectionResult = Array<
   | { type: "vocab"; data: VocabError }
 >;
 
+// Grammar Practice 相關型別
+export interface GrammarPracticeResult {
+  isCorrect: boolean; // 是否正確
+  userSentence: string; // 使用者輸入的句子
+  correctiveExample?: string; // 錯誤時的修正範例（僅錯誤時有）
+  detailedExplanation?: string; // 錯誤時的詳細解釋（僅錯誤時有）
+}
+
 // Tool Panel 相關型別
 export type ToolType =
   | "reference-panel"

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { type Node } from "@xyflow/react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
+import { Loading } from "@/components/ui/loading";
 import { OutlineData, OutlineSectionType } from "@/lib/types";
 import { generateOutline, saveOutline } from "@/lib/data/outline";
 
@@ -151,7 +152,12 @@ export function OutlineGenerator({
 
         {/* 內容區域 */}
         <div className="flex-1 overflow-y-auto px-[30px] py-[20px]">
-          {!outline ? (
+          {isGenerating ? (
+            // Loading 狀態
+            <div className="flex items-center justify-center h-[200px]">
+              <Loading text="Generating..." className="w-full h-full" />
+            </div>
+          ) : !outline ? (
             // 初始狀態
             <div className="flex flex-col gap-[20px]">
               <p className="text-[14px] text-(--color-text-secondary)">
@@ -178,8 +184,8 @@ export function OutlineGenerator({
                     {section.type === "introduction"
                       ? "Introduction"
                       : section.type === "body"
-                      ? "Body"
-                      : "Conclusion"}
+                        ? "Body"
+                        : "Conclusion"}
                   </h3>
 
                   {/* 描述文字 */}
@@ -217,15 +223,13 @@ export function OutlineGenerator({
                             onClick={() =>
                               handleKeywordSelect(section.type, index)
                             }
-                            className={`w-full text-left px-[10px] py-[8px] text-[14px] text-(--color-text-secondary) transition-colors ${
-                              section.selectedKeywordIndex === index
+                            className={`w-full text-left px-[10px] py-[8px] text-[14px] text-(--color-text-secondary) transition-colors ${section.selectedKeywordIndex === index
                                 ? "bg-slate-100 font-medium"
                                 : "hover:bg-slate-50"
-                            } ${index === 0 ? "rounded-t-[10px]" : ""} ${
-                              index === section.keywordsOptions.length - 1
+                              } ${index === 0 ? "rounded-t-[10px]" : ""} ${index === section.keywordsOptions.length - 1
                                 ? "rounded-b-[10px]"
                                 : ""
-                            }`}
+                              }`}
                           >
                             {keyword}
                           </button>
@@ -245,14 +249,6 @@ export function OutlineGenerator({
                   </div>
                 </div>
               ))}
-            </div>
-          )}
-
-          {isGenerating && (
-            <div className="flex items-center justify-center py-[20px]">
-              <p className="text-[14px] text-(--color-text-secondary)">
-                Generating...
-              </p>
             </div>
           )}
         </div>

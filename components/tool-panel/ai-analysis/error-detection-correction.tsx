@@ -13,6 +13,7 @@ import { ErrorDetectionResult } from "@/lib/types";
 import { Loading } from "@/components/ui/loading";
 import { Button } from "@/components/ui/button";
 import { useEditor, ErrorPosition } from "@/app/(main)/editor-context";
+import { GrammarPracticeModal } from "./grammar-practice-modal";
 
 export interface ErrorDetectionCorrectionHandle {
   handleAnalyze: () => Promise<void>;
@@ -37,6 +38,8 @@ export const ErrorDetectionCorrection = forwardRef<
   const [imageUrls, setImageUrls] = useState<Map<number, string>>(new Map());
   const [loadingImages, setLoadingImages] = useState<Set<number>>(new Set());
   const loadedImageKeysRef = useRef<Set<string>>(new Set());
+  const [isPracticeModalOpen, setIsPracticeModalOpen] = useState(false);
+  const [selectedGrammarIndex, setSelectedGrammarIndex] = useState<number | null>(null);
 
   // 當 writingId 或 initialResults 改變時，同步狀態
   useEffect(() => {
@@ -219,7 +222,8 @@ export const ErrorDetectionCorrection = forwardRef<
   };
 
   const handlePractice = (index: number) => {
-    console.log("Practice for error", index);
+    setSelectedGrammarIndex(index);
+    setIsPracticeModalOpen(true);
   };
 
   const handleSkip = (index: number) => {
@@ -506,6 +510,19 @@ export const ErrorDetectionCorrection = forwardRef<
           );
         }
       })}
+
+      {/* Grammar Practice Modal */}
+      {selectedGrammarIndex !== null && results[selectedGrammarIndex]?.type === "grammar" && (
+        <GrammarPracticeModal
+          isOpen={isPracticeModalOpen}
+          onClose={() => {
+            setIsPracticeModalOpen(false);
+            setSelectedGrammarIndex(null);
+          }}
+          grammarName={results[selectedGrammarIndex].data.grammarName}
+          explanation={results[selectedGrammarIndex].data.explanation}
+        />
+      )}
     </div>
   );
 });
