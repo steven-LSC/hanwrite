@@ -547,6 +547,34 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       highlightRef.current = null;
     };
 
+    // 替換指定位置的文字
+    const replaceText = (position: { start: number; end: number }, newText: string) => {
+      if (!editorRef.current) return;
+
+      // 計算新的文字內容
+      const newContent =
+        content.substring(0, position.start) +
+        newText +
+        content.substring(position.end);
+
+      setContent(newContent);
+
+      // 更新 contentEditable div 的內容（將 \n 轉換為 <br>）
+      editorRef.current.innerHTML = textToHtml(newContent);
+
+      // 清除 highlight
+      clearHighlight();
+
+      // 將游標移到替換文字的後面
+      setTimeout(() => {
+        if (editorRef.current) {
+          const newPosition = position.start + newText.length;
+          editorRef.current.focus();
+          setSelectionRange(editorRef.current, newPosition, newPosition);
+        }
+      }, 0);
+    };
+
     // 暴露 highlight 方法給 context
     useImperativeHandle(editorHighlightRef, () => ({
       highlightError: (position: { start: number; end: number }, errorType: "grammar" | "vocab") => {
@@ -556,6 +584,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         highlightAllErrors(errors);
       },
       clearHighlight,
+      replaceText,
     }));
 
     // 暴露方法給父元件
@@ -894,6 +923,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Title"
+              spellCheck={false}
               className="font-medium text-[20px] text-(--color-text-primary) flex-1 outline-none bg-transparent"
               disabled={isLoading}
             />
@@ -925,6 +955,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
               <div
                 ref={editorRef}
                 contentEditable
+                spellCheck={false}
                 onInput={handleInput}
                 onMouseUp={handleMouseUp}
                 suppressContentEditableWarning

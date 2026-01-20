@@ -4,10 +4,19 @@ import {
   calculateTreePositions,
 } from "@/lib/mindmap-utils";
 
+export type MindmapMetadata = {
+  id: string;
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type MindmapData = {
   id: string;
   title: string;
   nodes: Node[];
+  createdAt?: Date;
+  updatedAt?: Date;
 };
 
 export interface UseMindmapDataOptions {

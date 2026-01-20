@@ -103,20 +103,56 @@ export function Mindmap({ initialNodes = [], onNodesChange }: MindmapProps) {
   // 同步外部 nodes 變化，並為它們添加 callbacks
   useEffect(() => {
     // 使用深度比較來檢查 initialNodes 是否真的改變了
+    // 使用 Map 來比較，避免索引順序問題
+    const prevNodesMap = new Map(
+      prevInitialNodesRef.current.map((node) => [node.id, node])
+    );
     const nodesChanged =
       initialNodes.length !== prevInitialNodesRef.current.length ||
-      initialNodes.some(
-        (node, index) =>
-          node.id !== prevInitialNodesRef.current[index]?.id ||
-          node.data.label !== prevInitialNodesRef.current[index]?.data.label ||
-          node.data.parentId !== prevInitialNodesRef.current[index]?.data.parentId
+      initialNodes.some((node) => {
+        const prevNode = prevNodesMap.get(node.id);
+        if (!prevNode) return true;
+        return (
+          node.data.label !== prevNode.data.label ||
+          node.data.parentId !== prevNode.data.parentId ||
+          node.selected !== prevNode.selected
+        );
+      });
+
+    // 如果只有 selected 狀態改變，直接更新 selected，不需要重新計算位置
+    const onlySelectedChanged =
+      initialNodes.length === prevInitialNodesRef.current.length &&
+      initialNodes.every((node) => {
+        const prevNode = prevNodesMap.get(node.id);
+        if (!prevNode) return false;
+        return (
+          node.data.label === prevNode.data.label &&
+          node.data.parentId === prevNode.data.parentId &&
+          node.selected !== prevNode.selected
+        );
+      });
+
+    if (onlySelectedChanged && !isInternalUpdateRef.current) {
+      // 只更新 selected 狀態，不重新計算位置
+      setNodes((nds) =>
+        nds.map((node) => {
+          const initialNode = initialNodes.find((n) => n.id === node.id);
+          return {
+            ...node,
+            selected: initialNode?.selected ?? false,
+          };
+        })
       );
+      prevInitialNodesRef.current = initialNodes;
+      return;
+    }
 
     // 只有在外部傳入的 nodes 真的改變時才更新（不是內部更新導致的）
     if (nodesChanged && !isInternalUpdateRef.current) {
-      // 為 nodes 添加 callbacks
+      // 為 nodes 添加 callbacks，保留 selected 狀態
       const nodesWithCallbacks = initialNodes.map((node) => ({
         ...node,
+        selected: node.selected,
         data: {
           ...node.data,
           onLabelChange: (newLabel: string) =>
@@ -131,9 +167,18 @@ export function Mindmap({ initialNodes = [], onNodesChange }: MindmapProps) {
         ? calculateTreePositions(nodesWithCallbacks, root.id)
         : nodesWithCallbacks;
 
-      setNodes(positionedNodes);
+      // 確保保留 selected 狀態（calculateTreePositions 可能會重新創建 nodes）
+      const nodesWithPreservedSelection = positionedNodes.map((node) => {
+        const originalNode = initialNodes.find((n) => n.id === node.id);
+        return {
+          ...node,
+          selected: originalNode?.selected ?? false,
+        };
+      });
+
+      setNodes(nodesWithPreservedSelection);
       prevInitialNodesRef.current = initialNodes;
-      prevNodesRef.current = positionedNodes;
+      prevNodesRef.current = nodesWithPreservedSelection;
       // 外部更新時，確保標記為 false
       isInternalUpdateRef.current = false;
     }

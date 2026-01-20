@@ -83,18 +83,16 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className={`flex h-screen bg-(--color-bg-primary) overflow-x-auto transition-all duration-300 ${
-        isFocusMode ? "min-w-[750px]" : "min-w-[1200px]"
-      }`}
+      className={`flex h-screen bg-(--color-bg-primary) overflow-x-auto transition-all duration-300 ${isFocusMode ? "min-w-[750px]" : "min-w-[1200px]"
+        }`}
     >
       {/* 左側導航 - 一般模式 192px，Focus 模式 40px */}
       <div className="shrink-0">
         <div
-          className={`h-full bg-white border border-(--color-border) flex flex-col transition-all duration-300 ${
-            isFocusMode
+          className={`h-full bg-white border border-(--color-border) flex flex-col transition-all duration-300 ${isFocusMode
               ? "w-[40px] py-[40px] px-0 gap-[40px]"
               : "w-[192px] p-[20px] gap-[40px]"
-          }`}
+            }`}
         >
           {/* Logo 區域（固定） */}
           <div className="flex flex-col items-center gap-[5px] shrink-0">
@@ -121,9 +119,8 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
 
           {/* 主要導航區域（固定） */}
           <div
-            className={`flex flex-col shrink-0 ${
-              isFocusMode ? "gap-[20px]" : "gap-[5px]"
-            }`}
+            className={`flex flex-col shrink-0 ${isFocusMode ? "gap-[20px]" : "gap-[5px]"
+              }`}
           >
             <button
               onClick={async () => {
@@ -134,11 +131,10 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                   }
                 }
               }}
-              className={`flex items-center rounded-[10px] text-(--color-text-secondary) hover:bg-slate-100 transition-colors duration-200 cursor-pointer ${
-                isFocusMode
+              className={`flex items-center rounded-[10px] text-(--color-text-secondary) hover:bg-slate-100 transition-colors duration-200 cursor-pointer ${isFocusMode
                   ? "justify-center p-[5px]"
                   : "gap-[5px] px-[10px] py-[5px]"
-              }`}
+                }`}
             >
               <span className="material-symbols-rounded text-[20px]">
                 edit_square
@@ -152,15 +148,15 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                 if (!pathname?.startsWith("/brainstorm")) {
                   const shouldNavigate = await showWarning();
                   if (shouldNavigate) {
-                    router.push("/brainstorm/new");
+                    // 立即導向到 loading 頁面，讓 page.tsx 處理載入邏輯
+                    router.push("/brainstorm/loading");
                   }
                 }
               }}
-              className={`flex items-center rounded-[10px] text-(--color-text-secondary) hover:bg-slate-100 transition-colors duration-200 cursor-pointer ${
-                isFocusMode
+              className={`flex items-center rounded-[10px] text-(--color-text-secondary) hover:bg-slate-100 transition-colors duration-200 cursor-pointer ${isFocusMode
                   ? "justify-center p-[5px]"
                   : "gap-[5px] px-[10px] py-[5px]"
-              }`}
+                }`}
             >
               <span className="material-symbols-rounded text-[20px]">
                 experiment
@@ -182,9 +178,8 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                   <div
                     key={writing.id}
                     onClick={() => handleWritingClick(writing.id)}
-                    className={`px-[10px] py-[5px] rounded-[10px] hover:bg-slate-100 transition-colors duration-200 cursor-pointer shrink-0 ${
-                      currentWritingId === writing.id ? "bg-slate-100" : ""
-                    }`}
+                    className={`px-[10px] py-[5px] rounded-[10px] hover:bg-slate-100 transition-colors duration-200 cursor-pointer shrink-0 ${currentWritingId === writing.id ? "bg-slate-100" : ""
+                      }`}
                   >
                     <p className="font-medium text-[14px] text-(--color-text-secondary) overflow-hidden text-ellipsis whitespace-nowrap">
                       {writing.title}

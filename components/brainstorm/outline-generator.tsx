@@ -38,11 +38,39 @@ export function OutlineGenerator({
     conclusion: null,
   });
 
+  // 遷移舊格式資料：將 exampleSentence 轉換為 exampleSentences
+  const migrateOutlineData = (data: OutlineData): OutlineData => {
+    return {
+      ...data,
+      sections: data.sections.map((section) => {
+        // 如果已經是新格式，直接返回
+        if (section.exampleSentences) {
+          return section;
+        }
+        // 如果是舊格式，轉換為新格式
+        const oldSection = section as any;
+        if (oldSection.exampleSentence) {
+          return {
+            ...section,
+            exampleSentences: section.keywordsOptions.map(
+              () => oldSection.exampleSentence
+            ),
+          };
+        }
+        // 如果都沒有，提供空陣列
+        return {
+          ...section,
+          exampleSentences: section.keywordsOptions.map(() => ""),
+        };
+      }),
+    };
+  };
+
   // 當 modal 開啟時，如果有 savedOutline 就使用它，否則清空
   useEffect(() => {
     if (isOpen) {
       if (savedOutline) {
-        setOutline(savedOutline);
+        setOutline(migrateOutlineData(savedOutline));
       } else {
         setOutline(null);
       }
@@ -75,7 +103,7 @@ export function OutlineGenerator({
     setIsGenerating(true);
     try {
       const generated = await generateOutline(title, nodes);
-      setOutline(generated);
+      setOutline(migrateOutlineData(generated));
     } catch (error) {
       console.error("Failed to generate outline:", error);
     } finally {
@@ -87,7 +115,7 @@ export function OutlineGenerator({
     setIsGenerating(true);
     try {
       const generated = await generateOutline(title, nodes);
-      setOutline(generated);
+      setOutline(migrateOutlineData(generated));
     } catch (error) {
       console.error("Failed to regenerate outline:", error);
     } finally {
@@ -151,7 +179,7 @@ export function OutlineGenerator({
         </div>
 
         {/* 內容區域 */}
-        <div className="flex-1 overflow-y-auto px-[30px] py-[20px]">
+        <div className="flex-1 overflow-y-auto scrollbar-hide px-[30px] py-[20px]">
           {isGenerating ? (
             // Loading 狀態
             <div className="flex items-center justify-center h-[200px]">
@@ -197,7 +225,7 @@ export function OutlineGenerator({
                   <div className="relative">
                     <button
                       onClick={() => toggleDropdown(section.type)}
-                      className="w-full bg-(--color-bg-secondary) border border-(--color-border) rounded-[5px] px-[10px] py-[5px] flex items-center justify-between hover:bg-[#e2e8f0] transition-colors"
+                      className="w-full bg-white border border-(--color-border) rounded-[5px] px-[10px] py-[5px] flex items-center justify-between hover:bg-gray-50 transition-colors"
                     >
                       <span className="text-[14px] text-(--color-text-secondary) font-medium">
                         {getSelectedKeyword(section.type)}
@@ -224,8 +252,8 @@ export function OutlineGenerator({
                               handleKeywordSelect(section.type, index)
                             }
                             className={`w-full text-left px-[10px] py-[8px] text-[14px] text-(--color-text-secondary) transition-colors ${section.selectedKeywordIndex === index
-                                ? "bg-slate-100 font-medium"
-                                : "hover:bg-slate-50"
+                              ? "bg-slate-100 font-medium"
+                              : "hover:bg-slate-50"
                               } ${index === 0 ? "rounded-t-[10px]" : ""} ${index === section.keywordsOptions.length - 1
                                 ? "rounded-b-[10px]"
                                 : ""
@@ -244,7 +272,7 @@ export function OutlineGenerator({
                       Example sentence:
                     </p>
                     <p className="text-[14px] text-(--color-text-secondary) font-medium">
-                      {section.exampleSentence}
+                      {section.exampleSentences[section.selectedKeywordIndex] || ""}
                     </p>
                   </div>
                 </div>

@@ -19,6 +19,7 @@ export interface EditorHighlightRef {
   highlightError: (position: { start: number; end: number }, errorType: "grammar" | "vocab") => void;
   highlightAllErrors: (errors: ErrorPosition[]) => void;
   clearHighlight: () => void;
+  replaceText: (position: { start: number; end: number }, newText: string) => void;
 }
 
 interface EditorContextType {

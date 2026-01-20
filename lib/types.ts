@@ -149,7 +149,7 @@ export interface OutlineSection {
   type: OutlineSectionType;
   description: string; // 描述性指引（英文）
   keywordsOptions: string[]; // 關鍵字選項陣列
-  exampleSentence: string; // 範例句子（韓文）
+  exampleSentences: string[]; // 範例句子陣列（韓文），與 keywordsOptions 一一對應
 }
 
 export interface OutlineData {

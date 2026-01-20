@@ -23,8 +23,11 @@ export async function generateOutline(
         "가족, 여름방학, 휴식",
         "부산, 여행, 계획",
       ],
-      exampleSentence:
+      exampleSentences: [
         "나는 부모님과 동생과 함께 여름방학에 휴식을 위해 부산 여행을 떠났다.",
+        "가족과 함께 여름방학 동안 휴식을 취하기로 결정했다.",
+        "부산 여행을 계획하며 기대감이 높아졌다.",
+      ],
     },
     {
       type: "body",
@@ -35,8 +38,11 @@ export async function generateOutline(
         "자갈치 시장, 쇼핑",
         "사진 찍기, 해운대, 파도",
       ],
-      exampleSentence:
+      exampleSentences: [
         "해운대에서 산책을 하며 파도를 바라보니 마음이 편안해졌다.",
+        "자갈치 시장에서 신선한 해산물을 쇼핑하며 즐거운 시간을 보냈다.",
+        "해운대 해변에서 파도를 배경으로 사진을 찍으며 추억을 남겼다.",
+      ],
     },
     {
       type: "conclusion",
@@ -47,8 +53,11 @@ export async function generateOutline(
         "추억, 가족, 행복",
         "여행, 성장, 감사",
       ],
-      exampleSentence:
+      exampleSentences: [
         "부산 여행을 통해 부모님과 동생과의 관계가 더욱 가까워졌음을 느꼈다.",
+        "이번 여행으로 가족과 함께 만든 추억이 행복한 기억으로 남았다.",
+        "여행을 통해 성장할 수 있었고, 가족에 대한 감사함을 다시 한 번 느꼈다.",
+      ],
     },
   ];
 
@@ -119,8 +128,11 @@ export async function getSavedOutline(
             "부산, 여행, 계획",
           ],
           selectedKeywordIndex: 0,
-          exampleSentence:
+          exampleSentences: [
             "나는 부모님과 동생과 함께 여름방학에 휴식을 위해 부산 여행을 떠났다.",
+            "가족과 함께 여름방학 동안 휴식을 취하기로 결정했다.",
+            "부산 여행을 계획하며 기대감이 높아졌다.",
+          ],
         },
         {
           type: "body",
@@ -132,8 +144,11 @@ export async function getSavedOutline(
             "사진 찍기, 해운대, 파도",
           ],
           selectedKeywordIndex: 1,
-          exampleSentence:
+          exampleSentences: [
             "해운대에서 산책을 하며 파도를 바라보니 마음이 편안해졌다.",
+            "자갈치 시장에서 신선한 해산물을 쇼핑하며 즐거운 시간을 보냈다.",
+            "해운대 해변에서 파도를 배경으로 사진을 찍으며 추억을 남겼다.",
+          ],
         },
         {
           type: "conclusion",
@@ -145,8 +160,11 @@ export async function getSavedOutline(
             "여행, 성장, 감사",
           ],
           selectedKeywordIndex: 0,
-          exampleSentence:
+          exampleSentences: [
             "부산 여행을 통해 부모님과 동생과의 관계가 더욱 가까워졌음을 느꼈다.",
+            "이번 여행으로 가족과 함께 만든 추억이 행복한 기억으로 남았다.",
+            "여행을 통해 성장할 수 있었고, 가족에 대한 감사함을 다시 한 번 느꼈다.",
+          ],
         },
       ],
     };
