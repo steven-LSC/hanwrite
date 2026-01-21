@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { verifyUser, setAuthCookie } from '@/lib/auth'
+import { verifyUser, setAuthCookie, createUser } from '@/lib/auth'
 
 export async function loginAction(formData: FormData) {
   const account = formData.get('account') as string
@@ -24,4 +24,24 @@ export async function loginAction(formData: FormData) {
 
   // 跳轉到文章編輯頁
   redirect('/writings/new')
+}
+
+export async function signUpAction(formData: FormData) {
+  const account = formData.get('account') as string
+  const password = formData.get('password') as string
+
+  // 驗證輸入
+  if (!account || !password) {
+    return { error: 'Please fill in all fields.' }
+  }
+
+  // 創建新使用者
+  const result = await createUser(account, password)
+  
+  if (!result.success) {
+    return { error: result.error || 'Failed to create account.' }
+  }
+
+  // 註冊成功，返回成功狀態讓 client 端處理
+  return { success: true }
 }

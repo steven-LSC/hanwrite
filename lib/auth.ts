@@ -1,22 +1,30 @@
 'use server'
 
 import { cookies } from 'next/headers'
+import { prisma } from './prisma'
 
 const COOKIE_NAME = 'auth-user'
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 // 7 days in seconds
-
-// 假資料
-const MOCK_USER = {
-  account: 'user1',
-  password: '1234',
-  username: 'user1'
-}
 
 /**
  * 驗證使用者帳號密碼
  */
 export async function verifyUser(account: string, password: string): Promise<boolean> {
-  return account === MOCK_USER.account && password === MOCK_USER.password
+  try {
+    const user = await prisma.user.findUnique({
+      where: { username: account }
+    })
+
+    if (!user) {
+      return false
+    }
+
+    // 明碼比對（prototype 階段）
+    return user.password === password
+  } catch (error) {
+    console.error('驗證使用者時發生錯誤:', error)
+    return false
+  }
 }
 
 /**
@@ -58,4 +66,34 @@ export async function getAuthUser(): Promise<{ username: string } | null> {
 export async function clearAuthCookie(): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.delete(COOKIE_NAME)
+}
+
+/**
+ * 創建新使用者
+ * @returns 成功返回 true，使用者名稱已存在返回 false
+ */
+export async function createUser(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 檢查使用者名稱是否已存在
+    const existingUser = await prisma.user.findUnique({
+      where: { username }
+    })
+
+    if (existingUser) {
+      return { success: false, error: 'Username already exists.' }
+    }
+
+    // 創建新使用者
+    await prisma.user.create({
+      data: {
+        username,
+        password
+      }
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('創建使用者時發生錯誤:', error)
+    return { success: false, error: 'Failed to create user.' }
+  }
 }
