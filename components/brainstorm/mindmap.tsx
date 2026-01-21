@@ -31,7 +31,7 @@ export function Mindmap({
   onNodesChange,
   onCanvasClick,
 }: MindmapProps) {
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, fitView, setCenter } = useReactFlow();
   const [nodes, setNodes, onNodesChangeInternal] =
     useNodesState<Node>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -39,6 +39,7 @@ export function Mindmap({
   const prevInitialNodesRef = useRef<Node[]>(initialNodes);
   const isInternalUpdateRef = useRef(false);
   const prevNodesRef = useRef<Node[]>([]);
+  const hasInitializedViewRef = useRef(false);
 
   // 處理節點 label 變更
   const handleLabelChange = useCallback(
@@ -48,13 +49,13 @@ export function Mindmap({
         const updated = nds.map((node) =>
           node.id === nodeId
             ? {
-                ...node,
-                data: {
-                  ...node.data,
-                  label: newLabel,
-                  isNew: false,
-                },
-              }
+              ...node,
+              data: {
+                ...node.data,
+                label: newLabel,
+                isNew: false,
+              },
+            }
             : node
         );
         // 重新計算位置
@@ -185,6 +186,8 @@ export function Mindmap({
       setNodes(nodesWithPreservedSelection);
       prevInitialNodesRef.current = initialNodes;
       prevNodesRef.current = nodesWithPreservedSelection;
+      // 外部更新時，重置視角初始化標記，讓新的 mindmap 也能設定視角
+      hasInitializedViewRef.current = false;
       // 外部更新時，確保標記為 false
       isInternalUpdateRef.current = false;
     }
@@ -199,6 +202,23 @@ export function Mindmap({
       prevNodesRef.current = nodes;
     }
   }, [nodes]);
+
+  // 設定初始視角：當 nodes 首次載入時，將 root node 置中
+  useEffect(() => {
+    if (nodes.length > 0 && !hasInitializedViewRef.current) {
+      const root = findRootNode(nodes);
+      if (root) {
+        // 使用 setTimeout 確保 ReactFlow 已經完全渲染
+        const timeoutId = setTimeout(() => {
+          // 將視角中心設定到 root node 的位置
+          setCenter(root.position.x, root.position.y, { zoom: 1 });
+          hasInitializedViewRef.current = true;
+        }, 150);
+
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [nodes, setCenter]);
 
   // 當 nodes 變更時，自動更新 edges
   useEffect(() => {

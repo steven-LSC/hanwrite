@@ -7,6 +7,21 @@ export function MindmapNode({ data, selected, id }: NodeProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(data.label as string);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Callback ref 用於確保 textarea 渲染後立即聚焦
+  const setTextareaRef = (element: HTMLTextAreaElement | null) => {
+    textareaRef.current = element;
+    // 如果是新 node，立即聚焦
+    if (element && data.isNew) {
+      // 使用 setTimeout 確保在 React 完成渲染後再聚焦
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(0, 0);
+        }
+      }, 0);
+    }
+  };
 
   // 如果是新 node，自動進入編輯模式
   useEffect(() => {
@@ -14,6 +29,13 @@ export function MindmapNode({ data, selected, id }: NodeProps) {
       setIsEditing(true);
     }
   }, [data.isNew]);
+
+  // 當新 node 被選中時，確保進入編輯模式
+  useEffect(() => {
+    if (data.isNew && selected) {
+      setIsEditing(true);
+    }
+  }, [data.isNew, selected]);
 
   const handleTextDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -50,22 +72,32 @@ export function MindmapNode({ data, selected, id }: NodeProps) {
     }
   };
 
-  // 聚焦邏輯：當進入編輯模式時自動聚焦
+  // 聚焦邏輯：當進入編輯模式時自動聚焦，特別是新 node 被選中時
   useEffect(() => {
     if (isEditing && textareaRef.current) {
-      requestAnimationFrame(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-          if (data.isNew) {
-            textareaRef.current.setSelectionRange(0, 0);
-          } else {
-            const length = textareaRef.current.value.length;
-            textareaRef.current.setSelectionRange(length, length);
-          }
-        }
-      });
+      // 使用雙重 requestAnimationFrame 和 setTimeout 確保 DOM 完全渲染
+      const focusTimeout = setTimeout(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (textareaRef.current) {
+              textareaRef.current.focus();
+              // 確保聚焦成功
+              if (document.activeElement === textareaRef.current) {
+                if (data.isNew) {
+                  textareaRef.current.setSelectionRange(0, 0);
+                } else {
+                  const length = textareaRef.current.value.length;
+                  textareaRef.current.setSelectionRange(length, length);
+                }
+              }
+            }
+          });
+        });
+      }, 100); // 給 ReactFlow 更多時間來渲染節點
+
+      return () => clearTimeout(focusTimeout);
     }
-  }, [isEditing, data.isNew]);
+  }, [isEditing, data.isNew, selected]);
 
   useEffect(() => {
     setLabel(data.label as string);
@@ -75,8 +107,8 @@ export function MindmapNode({ data, selected, id }: NodeProps) {
     <div
       onDoubleClick={handleNodeDoubleClick}
       className={`px-4 rounded-lg border transition-all cursor-pointer outline-none focus:outline-none focus-visible:outline-none relative h-[40px] w-[200px] flex items-center justify-center ${selected
-          ? "bg-blue-50 border-blue-300"
-          : "bg-(--color-bg-card) border-gray-300 hover:border-gray-400"
+        ? "bg-blue-50 border-blue-300"
+        : "bg-(--color-bg-card) border-gray-300 hover:border-gray-400"
         }`}
     >
       {/* Handle 用於連接線 */}
@@ -107,7 +139,7 @@ export function MindmapNode({ data, selected, id }: NodeProps) {
 
       {isEditing ? (
         <textarea
-          ref={textareaRef}
+          ref={setTextareaRef}
           value={label}
           onChange={(e) => {
             setLabel(e.target.value);
@@ -115,6 +147,8 @@ export function MindmapNode({ data, selected, id }: NodeProps) {
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           onDoubleClick={handleTextDoubleClick}
+          tabIndex={0}
+          autoFocus={data.isNew}
           className="bg-transparent outline-none text-(--color-text-secondary) text-[14px] font-medium text-center resize-none w-full overflow-hidden whitespace-nowrap flex items-center"
           style={{
             lineHeight: "40px",

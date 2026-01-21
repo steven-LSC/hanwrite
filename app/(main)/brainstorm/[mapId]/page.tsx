@@ -45,6 +45,7 @@ function BrainstormPageContent() {
   const [isOutlineGeneratorOpen, setIsOutlineGeneratorOpen] = useState(false);
   const [savedOutline, setSavedOutline] = useState<OutlineData | null>(null);
   const [mapList, setMapList] = useState<MindmapMetadata[]>([]);
+  const [isMapListLoaded, setIsMapListLoaded] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const loadingRequestIdRef = useRef<string | null>(null);
 
@@ -54,6 +55,7 @@ function BrainstormPageContent() {
       try {
         const allMaps = await getAllMindmaps();
         setMapList(allMaps);
+        setIsMapListLoaded(true);
 
         // 處理 "loading" 路由：載入後導向到最新的心智圖
         if (mapId === "loading") {
@@ -73,6 +75,7 @@ function BrainstormPageContent() {
       } catch (error) {
         console.error("Failed to load mindmaps:", error);
         setMapList([]);
+        setIsMapListLoaded(true);
         router.replace("/brainstorm/new");
       }
     };
@@ -135,6 +138,14 @@ function BrainstormPageContent() {
       setSelectedNodeId(null);
     }
   }, [mapId, currentIdeaPartnerMapId]);
+
+  // 監聽 nodes 變化，當有新 node（isNew: true）時自動選中
+  useEffect(() => {
+    const newNode = nodes.find((node) => node.data.isNew === true);
+    if (newNode && newNode.id !== selectedNodeId) {
+      setSelectedNodeId(newNode.id);
+    }
+  }, [nodes, selectedNodeId]);
 
   // 根據 selectedNodeId 更新 nodes 的 selected 屬性
   const nodesWithSelection = useMemo(() => {
@@ -297,8 +308,8 @@ function BrainstormPageContent() {
             />
             <button
               onClick={() => setIsPickerOpen((prev) => !prev)}
-              disabled={isLoading}
-              className={`h-[28px] w-[28px] flex items-center justify-center rounded-full transition-colors ${isLoading ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-100"}`}
+              disabled={isLoading || (isMapListLoaded && mapList.length === 0)}
+              className={`h-[28px] w-[28px] flex items-center justify-center rounded-full transition-colors ${isLoading || (isMapListLoaded && mapList.length === 0) ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-100"}`}
             >
               <span className="material-symbols-rounded text-(--color-text-secondary) text-[20px]">
                 {isPickerOpen ? "expand_less" : "expand_more"}
