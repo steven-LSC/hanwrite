@@ -13,14 +13,14 @@ export async function loginAction(formData: FormData) {
   }
 
   // 驗證帳號密碼
-  const isValid = await verifyUser(account, password)
+  const user = await verifyUser(account, password)
   
-  if (!isValid) {
+  if (!user) {
     return { error: 'Incorrect username or password.' }
   }
 
   // 設定登入 cookie
-  await setAuthCookie(account)
+  await setAuthCookie({ username: user.username, userId: user.id })
 
   // 跳轉到文章編輯頁
   redirect('/writings/new')

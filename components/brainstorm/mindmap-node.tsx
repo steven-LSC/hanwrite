@@ -74,11 +74,10 @@ export function MindmapNode({ data, selected, id }: NodeProps) {
   return (
     <div
       onDoubleClick={handleNodeDoubleClick}
-      className={`px-4 rounded-lg border transition-all cursor-pointer outline-none focus:outline-none focus-visible:outline-none relative h-[40px] w-[200px] flex items-center justify-center ${
-        selected
+      className={`px-4 rounded-lg border transition-all cursor-pointer outline-none focus:outline-none focus-visible:outline-none relative h-[40px] w-[200px] flex items-center justify-center ${selected
           ? "bg-blue-50 border-blue-300"
           : "bg-(--color-bg-card) border-gray-300 hover:border-gray-400"
-      }`}
+        }`}
     >
       {/* Handle 用於連接線 */}
       <Handle

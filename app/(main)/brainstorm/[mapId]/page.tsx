@@ -1,24 +1,31 @@
 "use client";
 
-import { startTransition, useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { type Node, ReactFlowProvider } from "@xyflow/react";
+import { createId } from "@paralleldrive/cuid2";
 import { Button } from "@/components/ui/button";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import { IdeaPartner } from "@/components/brainstorm/idea-partner";
 import { Mindmap } from "@/components/brainstorm/mindmap";
 import { OutlineGenerator } from "@/components/brainstorm/outline-generator";
-import { type MindmapData } from "@/components/brainstorm/use-mindmap-data";
 import { type OutlineData } from "@/lib/types";
 import { getSavedOutline } from "@/lib/data/outline";
 import { findRootNode, calculateTreePositions } from "@/lib/mindmap-utils";
-import { getAllMindmaps, getMindmapById, createMindmap } from "@/lib/data/mindmap";
+import { getAllMindmaps, createMindmap, getMindmapById, updateMindmap } from "@/lib/data/mindmap";
 import { type MindmapMetadata } from "@/components/brainstorm/use-mindmap-data";
 
-const fetchMindmap = async (mapId: string): Promise<MindmapData> => {
-  // getMindmapById 內部已經有延遲，不需要在這裡再加延遲
-  return getMindmapById(mapId);
-};
+const TEMP_MAP_ID = "new";
+
+const createTempRootNode = (): Node => ({
+  id: createId(),
+  position: { x: 0, y: 0 },
+  data: {
+    label: "",
+    parentId: null,
+    isNew: true,
+  },
+});
 
 function BrainstormPageContent() {
   const params = useParams();
@@ -28,7 +35,6 @@ function BrainstormPageContent() {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [loadedMapId, setLoadedMapId] = useState<string | null>(null);
   const [currentTitle, setCurrentTitle] = useState("");
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isIdeaPartnerOpen, setIsIdeaPartnerOpen] = useState(false);
@@ -41,131 +47,92 @@ function BrainstormPageContent() {
   const [mapList, setMapList] = useState<MindmapMetadata[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const loadingRequestIdRef = useRef<string | null>(null);
-  const createRequestIdRef = useRef<string | null>(null);
 
-  // 載入所有心智圖列表，並處理建立新 mindmap 的流程
+  // 初始化：載入所有心智圖列表
   useEffect(() => {
-    const loadAllMindmaps = async () => {
+    const loadMindmaps = async () => {
       try {
-        const currentMapId = params.mapId as string;
-        
-        // 如果 mapId 是 "loading"，載入所有 mindmaps 並導向到最新的
-        if (currentMapId === "loading") {
-          setIsLoading(true);
-          setIsPickerOpen(false);
-          setMapList([]); // 清空列表，顯示為空
-          
-          try {
-            const allMaps = await getAllMindmaps();
-            setMapList(allMaps);
-            
-            if (allMaps.length > 0) {
-              // 找到最新的（優先 updatedAt，沒有則用 createdAt）
-              const latestMap = [...allMaps].sort((a, b) => {
-                const aTime = a.updatedAt.getTime();
-                const bTime = b.updatedAt.getTime();
-                return bTime - aTime;
-              })[0];
-              router.replace(`/brainstorm/${latestMap.id}`);
-            } else {
-              // 如果沒有任何 mindmap，導向到 /new 建立第一個
-              router.replace("/brainstorm/new");
-            }
-          } catch (error) {
-            console.error("Failed to load mindmaps:", error);
-            setIsLoading(false);
-            setMapList([]);
-            // 如果載入失敗，導向到 /new
+        const allMaps = await getAllMindmaps();
+        setMapList(allMaps);
+
+        // 處理 "loading" 路由：載入後導向到最新的心智圖
+        if (mapId === "loading") {
+          if (allMaps.length > 0) {
+            // 後端已按 updatedAt 降序排序，第一個就是最新的
+            router.replace(`/brainstorm/${allMaps[0].id}`);
+          } else {
             router.replace("/brainstorm/new");
           }
           return;
         }
 
-        // 如果 mapId 是 "new"，建立新的 mindmap
-        if (currentMapId === "new") {
-          // 生成唯一的請求 ID，用於追蹤當前的創建請求
-          const requestId = `create-${Date.now()}-${Math.random()}`;
-          
-          // 如果已經有正在進行的創建請求，直接返回
-          if (createRequestIdRef.current) {
-            return;
-          }
-          
-          createRequestIdRef.current = requestId;
-          setIsLoading(true);
-          setIsPickerOpen(false);
-          
-          try {
-            // 先建立新的 mindmap
-            const newMindmap = await createMindmap();
-            
-            // 只有當前的請求才處理結果，避免競態條件
-            if (createRequestIdRef.current === requestId) {
-              // 重新載入所有 mindmaps（包含新創建的）
-              const allMaps = await getAllMindmaps();
-              setMapList(allMaps);
-              // 清除創建請求 ID
-              createRequestIdRef.current = null;
-              // 導向到新的 mindmap
-              router.replace(`/brainstorm/${newMindmap.id}`);
-            }
-          } catch (error) {
-            // 只有當前的請求才處理錯誤
-            if (createRequestIdRef.current === requestId) {
-              console.error("Failed to create mindmap:", error);
-              setIsLoading(false);
-              createRequestIdRef.current = null;
-              // 如果建立失敗，載入現有的 mindmaps
-              try {
-                const allMaps = await getAllMindmaps();
-                setMapList(allMaps);
-                if (allMaps.length > 0) {
-                  const latestMap = [...allMaps].sort((a, b) => {
-                    const aTime = a.updatedAt.getTime();
-                    const bTime = b.updatedAt.getTime();
-                    return bTime - aTime;
-                  })[0];
-                  router.replace(`/brainstorm/${latestMap.id}`);
-                }
-              } catch (loadError) {
-                console.error("Failed to load mindmaps:", loadError);
-                setMapList([]);
-              }
-            }
-          }
-          return;
-        }
-
-        // 正常載入所有 mindmaps（當 mapId 是有效的 mindmap id 時）
-        const allMaps = await getAllMindmaps();
-        setMapList(allMaps);
-
-        // 如果 URL 沒有 mapId，自動導向到最新的心智圖
-        if (!currentMapId) {
-          if (allMaps.length > 0) {
-            // 找到最新的（優先 updatedAt，沒有則用 createdAt）
-            const latestMap = [...allMaps].sort((a, b) => {
-              const aTime = a.updatedAt.getTime();
-              const bTime = b.updatedAt.getTime();
-              return bTime - aTime;
-            })[0];
-            router.replace(`/brainstorm/${latestMap.id}`);
-          }
+        // 如果當前沒有 mapId，導向到 /new
+        if (!mapId) {
+          router.replace("/brainstorm/new");
         }
       } catch (error) {
         console.error("Failed to load mindmaps:", error);
         setMapList([]);
+        router.replace("/brainstorm/new");
       }
     };
-    loadAllMindmaps();
-  }, [params.mapId, router]);
+    loadMindmaps();
+  }, [mapId, router]);
+
+  // 處理 "new" 路由：初始化空白狀態
+  useEffect(() => {
+    if (mapId === TEMP_MAP_ID) {
+      setIsPickerOpen(false);
+      const tempRootNode = createTempRootNode();
+      setNodes([tempRootNode]);
+      setCurrentTitle("New Mind Map");
+    }
+  }, [mapId]);
+
+  // 載入現有心智圖資料
+  useEffect(() => {
+    if (!mapId || mapId === TEMP_MAP_ID || mapId === "loading") {
+      return;
+    }
+
+    // 生成唯一的請求 ID，用於追蹤當前的載入請求
+    const requestId = `${mapId}-${Date.now()}`;
+    loadingRequestIdRef.current = requestId;
+
+    // 先清空舊的狀態，避免顯示舊內容
+    setNodes([]);
+    setCurrentTitle("");
+
+    setIsLoading(true);
+    getMindmapById(mapId)
+      .then((data) => {
+        // 只有當前的請求才更新狀態，避免競態條件
+        if (loadingRequestIdRef.current === requestId) {
+          setNodes(data.nodes);
+          setCurrentTitle(data.title);
+        }
+      })
+      .catch((error) => {
+        // 只有當前的請求才處理錯誤
+        if (loadingRequestIdRef.current === requestId) {
+          console.error("Failed to load mindmap:", error);
+        }
+      })
+      .finally(() => {
+        // 只有當前的請求才關閉 loading
+        if (loadingRequestIdRef.current === requestId) {
+          setIsLoading(false);
+          loadingRequestIdRef.current = null;
+        }
+      });
+  }, [mapId]);
 
   useEffect(() => {
     if (mapId !== currentIdeaPartnerMapId) {
       setIsIdeaPartnerOpen(false);
       setHasScannedIdeaPartner(false);
       setCurrentIdeaPartnerMapId(mapId);
-      setSelectedNodeId(null); // 切換 mapId 時清除選中狀態
+      setSelectedNodeId(null);
     }
   }, [mapId, currentIdeaPartnerMapId]);
 
@@ -183,6 +150,11 @@ function BrainstormPageContent() {
 
   // 載入已儲存的 outline
   useEffect(() => {
+    if (mapId === TEMP_MAP_ID) {
+      setSavedOutline(null);
+      return;
+    }
+
     const loadSavedOutline = async () => {
       try {
         const outline = await getSavedOutline(mapId);
@@ -196,17 +168,11 @@ function BrainstormPageContent() {
     loadSavedOutline();
   }, [mapId]);
 
-  // 當 mapId 改變時，立即更新 currentTitle（從 mapList 中取得）
-  useEffect(() => {
-    const existingMap = mapList.find((map) => map.id === mapId);
-    if (existingMap) {
-      setCurrentTitle(existingMap.title);
-    }
-  }, [mapId, mapList]);
-
   const handleOutlineClose = async () => {
     setIsOutlineGeneratorOpen(false);
-    // 重新載入 savedOutline（因為 Save 後可能已更新）
+    if (mapId === TEMP_MAP_ID) {
+      return;
+    }
     try {
       const outline = await getSavedOutline(mapId);
       setSavedOutline(outline);
@@ -215,71 +181,45 @@ function BrainstormPageContent() {
     }
   };
 
-  useEffect(() => {
-    if (!mapId || mapId === loadedMapId) {
-      return;
+  // Title 輸入框改變時，同步更新 mapList（前端顯示）
+  const handleTitleChange = (newTitle: string) => {
+    setCurrentTitle(newTitle);
+
+    // 如果是已存在的心智圖，同步更新 mapList
+    if (mapId !== TEMP_MAP_ID) {
+      setMapList((prev) =>
+        prev.map((map) => (map.id === mapId ? { ...map, title: newTitle } : map))
+      );
     }
-
-    // 如果 mapId 是特殊值（"loading" 或 "new"），不應該在這裡載入
-    // 這些值應該由第一個 useEffect 處理
-    if (mapId === "loading" || mapId === "new") {
-      return;
-    }
-
-    // 生成唯一的請求 ID，用於追蹤當前的載入請求
-    const requestId = `${mapId}-${Date.now()}`;
-    loadingRequestIdRef.current = requestId;
-
-    setIsLoading(true);
-    fetchMindmap(mapId)
-      .then((data) => {
-        // 只有當前的請求才更新 nodes，避免競態條件
-        if (loadingRequestIdRef.current === requestId) {
-          setNodes(data.nodes);
-          setCurrentTitle(data.title);
-          setLoadedMapId(data.id);
-        }
-      })
-      .catch((error) => {
-        // 只有當前的請求才處理錯誤
-        if (loadingRequestIdRef.current === requestId) {
-          console.error("Failed to load mindmap:", error);
-          // 如果載入失敗，導向到最新的心智圖
-          if (mapList.length > 0) {
-            const latestMap = [...mapList].sort((a, b) => {
-              const aTime = a.updatedAt.getTime();
-              const bTime = b.updatedAt.getTime();
-              return bTime - aTime;
-            })[0];
-            router.replace(`/brainstorm/${latestMap.id}`);
-          }
-        }
-      })
-      .finally(() => {
-        // 只有當前的請求才關閉 loading
-        if (loadingRequestIdRef.current === requestId) {
-          setIsLoading(false);
-          loadingRequestIdRef.current = null;
-        }
-      });
-  }, [mapId, loadedMapId, mapList, router]);
-
-  const handleTitleChange = (nextTitle: string) => {
-    setCurrentTitle(nextTitle);
-    setMapList((prev) =>
-      prev.map((map) =>
-        map.id === mapId ? { ...map, title: nextTitle } : map
-      )
-    );
   };
 
+  // 新增心智圖
   const handleSave = async () => {
+    if (mapId !== TEMP_MAP_ID) {
+      return; // 只處理新增，不處理更新
+    }
+
     setIsSaving(true);
-    // 模擬儲存過程，延遲 1.5 秒
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSaving(false);
-    // 這裡可以添加實際的儲存邏輯
-    console.log("Saving mindmap:", { mapId, nodes, title: currentTitle });
+    try {
+      // 創建新心智圖（只設置 title）
+      const newMindmap = await createMindmap(currentTitle);
+
+      // 更新 nodes（需要先創建才能更新）
+      const savedMindmap = await updateMindmap(newMindmap.id, { nodes });
+
+      // 將新創建的心智圖插入到 mapList 的最前面（因為後端已按 updatedAt 降序排序）
+      setMapList((prev) => [newMindmap, ...prev]);
+
+      // 更新 title（確保與後端同步）
+      setCurrentTitle(savedMindmap.title);
+
+      // 更新 URL
+      router.replace(`/brainstorm/${savedMindmap.id}`);
+    } catch (error) {
+      console.error("Failed to save mindmap:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSelectMap = (nextId: string) => {
@@ -288,9 +228,7 @@ function BrainstormPageContent() {
       return;
     }
     setIsPickerOpen(false);
-    startTransition(() => {
-      router.push(`/brainstorm/${nextId}`);
-    });
+    router.push(`/brainstorm/${nextId}`);
   };
 
   const handleCreateNewMindmap = () => {
@@ -302,35 +240,29 @@ function BrainstormPageContent() {
     nodeId: string,
     ideaText: string
   ): Promise<boolean> => {
-    // 驗證 idea text 不為空
     if (!ideaText || !ideaText.trim()) {
       return false;
     }
 
-    // 根據 nodeId 找到對應的 node
     const targetNode = nodes.find((node) => node.id === nodeId);
     if (!targetNode) {
       console.error(`Node with id ${nodeId} not found`);
       return false;
     }
 
-    // 判斷方向
     let direction: "left" | "right";
     const isRoot = !targetNode.data.parentId;
     if (isRoot) {
-      // 如果是 root，隨機選擇 left 或 right
       direction = Math.random() < 0.5 ? "left" : "right";
     } else {
-      // 如果不是 root，繼承其 direction
       direction =
         (targetNode.data.direction as "left" | "right") || "right";
     }
 
-    // 新增子節點
-    const newNodeId = `node-${Date.now()}`;
+    const newNodeId = createId();
     const newNode: Node = {
       id: newNodeId,
-      position: { x: 0, y: 0 }, // 位置會由 calculateTreePositions 計算
+      position: { x: 0, y: 0 },
       data: {
         label: ideaText.trim(),
         parentId: nodeId,
@@ -339,7 +271,6 @@ function BrainstormPageContent() {
       },
     };
 
-    // 更新 nodes
     const updatedNodes = [...nodes, newNode];
     const root = findRootNode(updatedNodes);
     const positionedNodes = root
@@ -392,10 +323,10 @@ function BrainstormPageContent() {
                   </button>
                 ))}
               </div>
-              
+
               {/* 分隔線 */}
               <div className="border-t border-(--color-border) my-[6px]" />
-              
+
               {/* 固定的 New MindMap 按鈕 */}
               <button
                 onClick={handleCreateNewMindmap}
@@ -409,7 +340,12 @@ function BrainstormPageContent() {
         </div>
 
         {/* Save 按鈕 */}
-        <Button variant="primary" icon="save" onClick={handleSave} disabled={isLoading}>
+        <Button
+          variant="primary"
+          icon="save"
+          onClick={handleSave}
+          disabled={isLoading || isSaving || mapId !== TEMP_MAP_ID}
+        >
           Save
         </Button>
         {isSaving && <StatusIndicator text="saving" />}
@@ -471,20 +407,23 @@ function BrainstormPageContent() {
 
       {/* 心智圖 */}
       <div className="relative w-full h-full">
-        <div className={`w-full h-full ${isLoading ? "pointer-events-none opacity-50" : ""}`}>
+        <div
+          className={`w-full h-full ${isLoading || isSaving ? "pointer-events-none opacity-50" : ""
+            }`}
+        >
           <Mindmap
             initialNodes={nodesWithSelection}
             onNodesChange={(updatedNodes) => {
-              // 保留 selected 狀態
               const nodesWithPreservedSelection = updatedNodes.map((node) => ({
                 ...node,
                 selected: node.id === selectedNodeId,
               }));
               setNodes(nodesWithPreservedSelection);
             }}
+            onCanvasClick={() => setIsPickerOpen(false)}
           />
         </div>
-        {isLoading && (
+        {(isLoading || isSaving) && (
           <div className="absolute inset-0 bg-black/5 z-50 pointer-events-none" />
         )}
       </div>

@@ -17,6 +17,19 @@ model User {
   id       String @id @default(uuid())
   username String @unique
   password String
+  mindmaps Mindmap[]
 
   @@map("User")
+}
+
+model Mindmap {
+  id        String   @id @default(cuid())
+  title     String
+  nodes     Json
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Mindmap")
 }

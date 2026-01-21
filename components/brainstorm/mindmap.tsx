@@ -9,6 +9,7 @@ import {
   useEdgesState,
   useReactFlow,
 } from "@xyflow/react";
+import { createId } from "@paralleldrive/cuid2";
 import "@xyflow/react/dist/style.css";
 import { MindmapNode } from "./mindmap-node";
 import {
@@ -22,9 +23,14 @@ import { generateEdges, findAllDescendants } from "./mindmap-utils";
 interface MindmapProps {
   initialNodes?: Node[];
   onNodesChange?: (nodes: Node[]) => void;
+  onCanvasClick?: () => void;
 }
 
-export function Mindmap({ initialNodes = [], onNodesChange }: MindmapProps) {
+export function Mindmap({
+  initialNodes = [],
+  onNodesChange,
+  onCanvasClick,
+}: MindmapProps) {
   const { screenToFlowPosition } = useReactFlow();
   const [nodes, setNodes, onNodesChangeInternal] =
     useNodesState<Node>(initialNodes);
@@ -74,7 +80,7 @@ export function Mindmap({ initialNodes = [], onNodesChange }: MindmapProps) {
         const direction =
           (parentNode.data.direction as "left" | "right") || "right";
 
-        const newNodeId = `node-${Date.now()}`;
+        const newNodeId = createId();
         const newNode: Node = {
           id: newNodeId,
           position: { x: 0, y: 0 }, // 位置會由 calculateTreePositions 計算
@@ -275,7 +281,7 @@ export function Mindmap({ initialNodes = [], onNodesChange }: MindmapProps) {
 
       // 如果沒有任何節點，新增的第一個節點就是 root
       if (nodes.length === 0) {
-        const newNodeId = `root-${Date.now()}`;
+        const newNodeId = createId();
         const newNode: Node = {
           id: newNodeId,
           position: { x: 0, y: 0 },
@@ -309,7 +315,7 @@ export function Mindmap({ initialNodes = [], onNodesChange }: MindmapProps) {
       const insertIndex = findInsertIndex(childrenNodes, position.y);
 
       setNodes((nds) => {
-        const newNodeId = `node-${Date.now()}`;
+        const newNodeId = createId();
         const newNode: Node = {
           id: newNodeId,
           position: { x: 0, y: 0 }, // 位置會由 calculateTreePositions 計算
@@ -353,6 +359,7 @@ export function Mindmap({ initialNodes = [], onNodesChange }: MindmapProps) {
   // 使用 onPaneClick 配合 timer 來檢測雙擊
   const handlePaneClick = useCallback(
     (event: React.MouseEvent) => {
+      onCanvasClick?.();
       if (clickTimeoutRef.current) {
         // 雙擊檢測到
         clearTimeout(clickTimeoutRef.current);
@@ -368,7 +375,7 @@ export function Mindmap({ initialNodes = [], onNodesChange }: MindmapProps) {
         }, 300); // 雙擊時間閾值：300ms
       }
     },
-    [handlePaneDoubleClick]
+    [handlePaneDoubleClick, onCanvasClick]
   );
 
   // 清理 timeout
@@ -397,6 +404,7 @@ export function Mindmap({ initialNodes = [], onNodesChange }: MindmapProps) {
         deleted.forEach((node) => handleDeleteNode(node.id));
       }}
       onPaneClick={handlePaneClick}
+      onNodeClick={() => onCanvasClick?.()}
       nodeTypes={nodeTypes}
       nodesDraggable={false}
       nodesConnectable={false}
