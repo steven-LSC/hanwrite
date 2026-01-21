@@ -31,6 +31,7 @@ interface EditorProps {
   initialTitle?: string;
   initialContent?: string;
   onSave?: (title: string, content: string) => Promise<void>;
+  onTitleChange?: (title: string) => void;
   isLoading?: boolean;
 }
 
@@ -42,7 +43,13 @@ export interface EditorRef {
 
 export const Editor = forwardRef<EditorRef, EditorProps>(
   (
-    { initialTitle = "", initialContent = "", onSave, isLoading = false },
+    {
+      initialTitle = "",
+      initialContent = "",
+      onSave,
+      onTitleChange,
+      isLoading = false,
+    },
     ref
   ) => {
     const { isFocusMode, toggleFocus } = useFocus();
@@ -921,7 +928,11 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                const newTitle = e.target.value;
+                setTitle(newTitle);
+                onTitleChange?.(newTitle);
+              }}
               placeholder="Title"
               spellCheck={false}
               className="font-medium text-[20px] text-(--color-text-primary) flex-1 outline-none bg-transparent"

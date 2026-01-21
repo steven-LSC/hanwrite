@@ -11,6 +11,7 @@ import { ToolPanelRef } from "@/components/tool-panel/tool-panel";
 
 export interface SidebarRef {
   refreshRecentWritings: () => Promise<void>;
+  updateRecentWritingTitle: (writingId: string, newTitle: string) => void;
 }
 
 interface FocusContextType {

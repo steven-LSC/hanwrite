@@ -5,6 +5,7 @@ import React, {
   useState,
   useImperativeHandle,
   startTransition,
+  useRef,
 } from "react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
@@ -23,6 +24,7 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
   const { showWarning } = useUnsaved();
   const [recentWritings, setRecentWritings] = useState<RecentWriting[]>([]);
   const [userName, setUserName] = useState<string>("");
+  const prevWritingIdRef = useRef<string | undefined>(undefined);
 
   // 從 pathname 提取當前選中的 writingId
   const currentWritingId = pathname?.startsWith("/writings/")
@@ -33,16 +35,46 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
 
   const refreshRecentWritings = async () => {
     const writings = await getRecentWritings();
+    // getRecentWritings 已經根據 updatedAt 降序排序，直接設定
     setRecentWritings(writings);
+  };
+
+  const updateRecentWritingTitle = (writingId: string, newTitle: string) => {
+    // 更新 recentWritings state 中對應文章的 title（僅更新本地狀態，不呼叫 API）
+    setRecentWritings((prev) =>
+      prev.map((writing) =>
+        writing.id === writingId ? { ...writing, title: newTitle } : writing
+      )
+    );
   };
 
   useImperativeHandle(sidebarRef, () => ({
     refreshRecentWritings,
+    updateRecentWritingTitle,
   }));
 
+  // 初始載入時 fetch 文章列表
   useEffect(() => {
     refreshRecentWritings();
   }, []);
+
+  // 當路由切換到別的文章時，重新 fetch 文章列表
+  useEffect(() => {
+    const prevWritingId = prevWritingIdRef.current;
+    
+    // 只有在切換到不同文章時才重新 fetch
+    // 避免在初始載入時重複 fetch（prevWritingId 為 undefined 且 currentWritingId 也是 undefined）
+    if (
+      currentWritingId &&
+      prevWritingId !== currentWritingId &&
+      prevWritingId !== undefined
+    ) {
+      refreshRecentWritings();
+    }
+    
+    // 更新 ref
+    prevWritingIdRef.current = currentWritingId;
+  }, [currentWritingId]);
 
   useEffect(() => {
     // 從 cookie 讀取使用者名稱

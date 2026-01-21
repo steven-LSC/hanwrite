@@ -117,30 +117,53 @@ const mockExpressionBuilderResults: ExpressionBuilderResult[] = [
 ];
 
 /**
- * 取得文章資料（薄抽象層）
- * 未來會改成真正的 API 呼叫
+ * 取得文章資料
  */
 export async function getWriting(id: string): Promise<Writing> {
-  // 模擬 API 延遲
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  const response = await fetch(`/api/writings/${id}`);
   
-  const writing = mockWritings[id];
-  if (!writing) {
-    throw new Error(`Writing with id ${id} not found`);
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(`Writing with id ${id} not found`);
+    }
+    throw new Error(`Failed to fetch writing: ${response.statusText}`);
   }
   
-  return writing;
+  const data = await response.json();
+  const writing = data.writing;
+  
+  // 轉換日期字串為 Date 物件
+  return {
+    ...writing,
+    createdAt: new Date(writing.createdAt),
+    updatedAt: new Date(writing.updatedAt),
+  };
 }
 
 /**
- * 取得最近的文章列表（薄抽象層）
- * 未來會改成真正的 API 呼叫
+ * 取得最近的文章列表
  */
 export async function getRecentWritings(): Promise<RecentWriting[]> {
-  // 模擬 API 延遲
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  const response = await fetch("/api/writings");
   
-  return mockRecentWritings;
+  if (!response.ok) {
+    throw new Error(`Failed to fetch recent writings: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  const writings = data.writings || [];
+  
+  // 根據 updatedAt 降序排序（確保最新更新的在最上面）
+  const sortedWritings = [...writings].sort((a, b) => {
+    const dateA = new Date(a.updatedAt).getTime();
+    const dateB = new Date(b.updatedAt).getTime();
+    return dateB - dateA;
+  });
+  
+  return sortedWritings.map((w) => ({
+    id: w.id,
+    title: w.title,
+  }));
 }
 
 /**
@@ -158,67 +181,53 @@ export async function getExpressionBuilderResults(
 }
 
 /**
- * 建立新文章（薄抽象層）
- * 未來會改成真正的 API 呼叫
+ * 建立新文章
  */
 export async function createWriting(
   title: string,
   content: string
 ): Promise<string> {
-  // 模擬 API 延遲
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  // 生成新 ID
-  const newId = String(nextId++);
-  const now = new Date();
-
-  // 建立新文章
-  const newWriting: Writing = {
-    id: newId,
-    title: title || "Untitled",
-    content,
-    characterCount: content.length,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  // 加入 mockWritings
-  mockWritings[newId] = newWriting;
-
-  // 加入 mockRecentWritings 最前面
-  mockRecentWritings.unshift({
-    id: newId,
-    title: newWriting.title,
+  const response = await fetch("/api/writings", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ title, content }),
   });
 
-  return newId;
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.error || `Failed to create writing: ${response.statusText}`
+    );
+  }
+
+  const data = await response.json();
+  return data.writing.id;
 }
 
 /**
- * 更新文章（薄抽象層）
- * 未來會改成真正的 API 呼叫
+ * 更新文章
  */
 export async function updateWriting(
   id: string,
   title: string,
   content: string
 ): Promise<void> {
-  // 模擬 API 延遲
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  const response = await fetch(`/api/writings/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ title, content }),
+  });
 
-  const writing = mockWritings[id];
-  if (!writing) {
-    throw new Error(`Writing with id ${id} not found`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.error || `Failed to update writing: ${response.statusText}`
+    );
   }
-
-  // 更新文章內容
-  writing.title = title || "Untitled";
-  writing.content = content;
-  writing.characterCount = content.length;
-  writing.updatedAt = new Date();
-
-  // 注意：更新現有文章時不改變 Recents 列表的順序
-  // 只有在新增文章時才會更新 Recents 列表
 }
 
 /**

@@ -51,41 +51,46 @@ export default function WritingPage() {
     }
   }, [writingId, isNewWriting, router, writing?.id]);
 
+  // Title 與側邊欄同步（本地狀態）
+  const handleTitleChange = (newTitle: string) => {
+    // 如果是已存在的文章（不是 new），同步更新側邊欄中的 title
+    if (!isNewWriting && writingId && sidebarRef.current) {
+      sidebarRef.current.updateRecentWritingTitle(writingId, newTitle);
+    }
+  };
+
   const handleSave = async (title: string, content: string) => {
+    // 驗證 title 和 content 都不為空
+    const trimmedTitle = title.trim();
+    const trimmedContent = content.trim();
+
+    if (!trimmedTitle || !trimmedContent) {
+      // 如果為空，不執行 save 操作
+      return;
+    }
+
     if (isNewWriting) {
       // 首次儲存：建立文章
-      const newId = await createWriting(title, content);
-      // 更新 sidebar 列表
+      const newId = await createWriting(trimmedTitle, trimmedContent);
+      // 更新 sidebar 列表（重新 fetch 全部文章）
       if (sidebarRef.current) {
         await sidebarRef.current.refreshRecentWritings();
       }
+      // 透過 id 去 get 這個文章並顯示
+      const newWriting = await getWriting(newId);
+      setWriting(newWriting);
       // 更新 URL
       router.push(`/writings/${newId}`);
-      // 更新本地狀態
-      const newWriting: Writing = {
-        id: newId,
-        title: title || "Untitled",
-        content,
-        characterCount: content.length,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      setWriting(newWriting);
     } else {
       // 更新現有文章
-      await updateWriting(writingId, title, content);
-      // 注意：更新現有文章時不更新 sidebar 列表順序
-      // 只有在新增文章時才會更新 sidebar 列表
-      // 更新本地狀態
-      if (writing) {
-        setWriting({
-          ...writing,
-          title: title || "Untitled",
-          content,
-          characterCount: content.length,
-          updatedAt: new Date(),
-        });
+      await updateWriting(writingId, trimmedTitle, trimmedContent);
+      // 更新後重新 fetch 文章列表（因為 updatedAt 改變會影響排序）
+      if (sidebarRef.current) {
+        await sidebarRef.current.refreshRecentWritings();
       }
+      // 透過 id 去 get 這個文章並顯示（確保顯示最新的資料）
+      const updatedWriting = await getWriting(writingId);
+      setWriting(updatedWriting);
     }
   };
 
@@ -204,6 +209,7 @@ export default function WritingPage() {
         initialTitle={writing?.title || ""}
         initialContent={writing?.content || ""}
         onSave={handleSave}
+        onTitleChange={handleTitleChange}
         isLoading={isEditorLoading}
       />
       <UnsavedChangesModal
