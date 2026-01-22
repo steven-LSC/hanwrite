@@ -1,7 +1,6 @@
 import {
   ExpansionHint,
   ParaphraseResult,
-  ParaphraseStyle,
 } from "@/lib/types";
 
 /**
@@ -35,88 +34,39 @@ export async function getExpansionHints(
 }
 
 /**
- * 取得 Paraphrase 結果（假資料）
- * 之後會替換成真實 API 呼叫
+ * 取得 Paraphrase 結果（真實 API 呼叫）
  */
 export async function getParaphraseResult(
-  selectedText: string,
-  style: ParaphraseStyle
+  selectedText: string
 ): Promise<ParaphraseResult> {
-  // 模擬 API 延遲
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  try {
+    const response = await fetch("/api/paraphrase", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        selectedText,
+      }),
+    });
 
-  // 根據不同風格回傳不同的假資料
-  const mockResults: Record<ParaphraseStyle, ParaphraseResult> = {
-    formal: {
-      originalText: selectedText,
-      changes: [
-        {
-          position: { start: 0, end: 3 },
-          original: "나는",
-          revised: "저는",
-          explanation: "formal first-person pronoun",
-        },
-        {
-          position: { start: 10, end: 14 },
-          original: "바닷가",
-          revised: "해변",
-          explanation: "more formal term for beach",
-        },
-        {
-          position: { start: 18, end: 22 },
-          original: "걸으면서",
-          revised: "산책하면서",
-          explanation: "formal expression for walking",
-        },
-      ],
-    },
-    natural: {
-      originalText: selectedText,
-      changes: [
-        {
-          position: { start: 10, end: 13 },
-          original: "함께",
-          revised: "같이",
-          explanation: "more natural everyday term",
-        },
-        {
-          position: { start: 18, end: 20 },
-          original: "한참",
-          revised: "오래",
-          explanation: "adds natural pacing",
-        },
-        {
-          position: { start: 28, end: 32 },
-          original: "바라보았다",
-          revised: "구경했다",
-          explanation: "more conversational verb",
-        },
-      ],
-    },
-    "native-like": {
-      originalText: selectedText,
-      changes: [
-        {
-          position: { start: 0, end: 3 },
-          original: "나는",
-          revised: "",
-          explanation: "subject naturally omitted",
-        },
-        {
-          position: { start: 18, end: 18 },
-          original: "",
-          revised: "한참 ",
-          explanation: "adds natural pacing and realism",
-        },
-        {
-          position: { start: 28, end: 32 },
-          original: "감상했고",
-          revised: "바라보았다",
-          explanation: "more native-like verb choice",
-        },
-      ],
-    },
-  };
+    if (!response.ok) {
+      const errorData = await response.json();
+      const error = new Error(errorData.error || "Failed to fetch paraphrase result");
+      // 如果是驗證錯誤（400），標記為預期錯誤，不需要 console.error
+      if (response.status === 400) {
+        (error as any).isValidationError = true;
+      }
+      throw error;
+    }
 
-  return mockResults[style];
+    const result: ParaphraseResult = await response.json();
+    return result;
+  } catch (error) {
+    // 只有非驗證錯誤才記錄到 console
+    if (!(error as any).isValidationError) {
+      console.error("Failed to fetch paraphrase result:", error);
+    }
+    throw error;
+  }
 }

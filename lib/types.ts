@@ -33,10 +33,15 @@ export interface ExpansionHint {
   example: string; // 韓文例句
 }
 
-// Paraphrase 風格選項
-export type ParaphraseStyle = "formal" | "natural" | "native-like";
+// LLM 回傳的中間型別（不包含 position）
+export interface ParaphraseChangeInput {
+  original: string; // 原本的文字（刪除時不為空，新增時為空）
+  revised: string; // 修改後的文字（新增時不為空，刪除時為空）
+  explanation: string; // 解釋
+  insertAfter?: string; // 新增時使用：指定在哪個文字片段之後插入（可選）
+}
 
-// 單一修改項目
+// 單一修改項目（包含 position，由後端計算）
 export interface ParaphraseChange {
   position: { start: number; end: number }; // 原句中的修改位置
   original: string; // 原本的文字
@@ -54,8 +59,8 @@ export interface ParaphraseResult {
 export type ContextMenuStage =
   | "initial"
   | "expansion-hint"
-  | "paraphrase-style" // 選擇風格階段
-  | "paraphrase-result"; // 顯示結果階段
+  | "paraphrase-result" // 顯示結果階段
+  | "paraphrase-error"; // 顯示錯誤階段
 
 // Reverse Outlining 相關型別
 export interface ReverseOutliningItem {

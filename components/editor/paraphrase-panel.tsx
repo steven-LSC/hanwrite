@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { ParaphraseResult, ParaphraseStyle } from "@/lib/types";
+import { ParaphraseResult } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 
 interface ParaphrasePanelProps {
   result: ParaphraseResult;
-  selectedStyle: ParaphraseStyle | null;
   onDiscard: () => void;
   onReplace: (enabledChanges: Set<number>) => void;
   editorRef: React.RefObject<HTMLDivElement | null>;
@@ -16,28 +15,12 @@ interface ParaphrasePanelProps {
 
 export function ParaphrasePanel({
   result,
-  selectedStyle,
   onDiscard,
   onReplace,
   editorRef,
   selectionStart,
   selectionEnd,
 }: ParaphrasePanelProps) {
-  // 根據選擇的風格取得對應的 icon 和 label
-  const getStyleInfo = (style: ParaphraseStyle | null) => {
-    switch (style) {
-      case "formal":
-        return { icon: "business_center", label: "Formally" };
-      case "natural":
-        return { icon: "conversation", label: "Naturally" };
-      case "native-like":
-        return { icon: "group", label: "Native-like" };
-      default:
-        return { icon: "autorenew", label: "Paraphrase" };
-    }
-  };
-
-  const styleInfo = getStyleInfo(selectedStyle);
   const [showDropdown, setShowDropdown] = useState(false);
   const [enabledChanges, setEnabledChanges] = useState<Set<number>>(
     new Set(result.changes.map((_, index) => index))
@@ -143,16 +126,6 @@ export function ParaphrasePanel({
       className="bg-white border border-(--color-border) rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] p-[20px] flex flex-col gap-[10px] w-[340px] h-[300px]"
       onMouseDown={preventBlur}
     >
-      {/* 頂部：選擇的風格 */}
-      <div className="flex items-center gap-[5px] rounded-[10px] shrink-0">
-        <span className="material-symbols-rounded text-[20px] text-(--color-text-secondary)">
-          {styleInfo.icon}
-        </span>
-        <span className="font-medium text-[14px] text-(--color-text-secondary)">
-          {styleInfo.label}
-        </span>
-      </div>
-
       {/* 中間可滾動區域 */}
       <div className="flex flex-col gap-[10px] overflow-y-auto flex-1 scrollbar-hide min-h-0">
         {/* 預覽文字區（highlight 修改部分）*/}
@@ -178,9 +151,8 @@ export function ParaphrasePanel({
               Show explanation and partial change
             </p>
             <span
-              className={`material-symbols-rounded text-[20px] text-(--color-text-secondary) transition-transform ${
-                showDropdown ? "rotate-180" : ""
-              }`}
+              className={`material-symbols-rounded text-[20px] text-(--color-text-secondary) transition-transform ${showDropdown ? "rotate-180" : ""
+                }`}
             >
               expand_more
             </span>
@@ -211,9 +183,12 @@ export function ParaphrasePanel({
                     className="shrink-0 w-[12px] h-[12px] cursor-pointer rounded-[3px] accent-[#475569] transition-all"
                   />
                   <p className="flex-1 font-medium text-[12px] text-(--color-text-secondary)">
-                    {change.revised}{" "}
-                    {change.original === change.revised ? "changed" : "added"} (
-                    {change.explanation})
+                    {change.original && change.revised
+                      ? `${change.original} -> ${change.revised}: `
+                      : change.original && !change.revised
+                        ? `- ${change.original}: `
+                        : `+ ${change.revised}: `}
+                    {change.explanation}
                   </p>
                 </label>
               ))}

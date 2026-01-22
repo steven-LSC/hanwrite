@@ -13,7 +13,7 @@ import { Loading } from "../ui/loading";
 import { ContextMenu } from "./context-menu";
 import { ExpansionHintPanel } from "./expansion-hint-panel";
 import { ParaphrasePanel } from "./paraphrase-panel";
-import { ParaphraseStylePanel } from "./paraphrase-style-panel";
+import { SelectionErrorPanel } from "./selection-error-panel";
 import {
   getExpansionHints,
   getParaphraseResult,
@@ -22,7 +22,6 @@ import {
   ContextMenuStage,
   ExpansionHint,
   ParaphraseResult,
-  ParaphraseStyle,
 } from "@/lib/types";
 import { useFocus } from "@/app/(main)/focus-context";
 import { useEditor, EditorHighlightRef, ErrorPosition } from "@/app/(main)/editor-context";
@@ -80,10 +79,8 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     // Paraphrase 相關狀態
     const [paraphraseResult, setParaphraseResult] =
       useState<ParaphraseResult | null>(null);
-    const [selectedStyle, setSelectedStyle] = useState<ParaphraseStyle | null>(
-      null
-    );
     const [isLoadingParaphrase, setIsLoadingParaphrase] = useState(false);
+    const [selectionError, setSelectionError] = useState<string | null>(null);
 
     // 當 initialTitle 或 initialContent 改變時更新狀態（用於切換文章）
     useEffect(() => {
@@ -787,22 +784,11 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       }
     };
 
-    // 選擇 Paraphrase（顯示風格選擇）
-    const handleSelectParaphrase = () => {
-      setMenuStage("paraphrase-style");
-
-      // 保持反白效果
-      if (editorRef.current) {
-        editorRef.current.focus();
-        setSelectionRange(editorRef.current, selectionStart, selectionEnd);
-      }
-    };
-
-    // 選擇 Paraphrase 風格
-    const handleSelectStyle = async (style: ParaphraseStyle) => {
-      setSelectedStyle(style);
+    // 選擇 Paraphrase（直接調用 API）
+    const handleSelectParaphrase = async () => {
       setMenuStage("paraphrase-result");
       setIsLoadingParaphrase(true);
+      setSelectionError(null);
 
       // 保持反白效果
       if (editorRef.current) {
@@ -811,10 +797,23 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       }
 
       try {
-        const result = await getParaphraseResult(selectedText, style);
+        const result = await getParaphraseResult(selectedText);
         setParaphraseResult(result);
       } catch (error) {
-        console.error("Failed to fetch paraphrase result:", error);
+        // 處理 API 錯誤
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "無法取得改寫結果，請稍後再試";
+
+        // 只有非驗證錯誤才記錄到 console（驗證錯誤是預期的，不需要記錄）
+        const isValidationError = (error as any).isValidationError;
+        if (!isValidationError) {
+          console.error("Failed to fetch paraphrase result:", error);
+        }
+
+        setSelectionError(errorMessage);
+        setMenuStage("paraphrase-error");
       } finally {
         setIsLoadingParaphrase(false);
       }
@@ -1031,15 +1030,6 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
               </>
             )}
 
-            {menuStage === "paraphrase-style" && (
-              <ParaphraseStylePanel
-                onSelectStyle={handleSelectStyle}
-                editorRef={editorRef}
-                selectionStart={selectionStart}
-                selectionEnd={selectionEnd}
-              />
-            )}
-
             {menuStage === "paraphrase-result" && (
               <>
                 {isLoadingParaphrase ? (
@@ -1049,7 +1039,6 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
                 ) : paraphraseResult ? (
                   <ParaphrasePanel
                     result={paraphraseResult}
-                    selectedStyle={selectedStyle}
                     onDiscard={handleDiscardParaphrase}
                     onReplace={handleReplaceParaphrase}
                     editorRef={editorRef}
@@ -1058,6 +1047,10 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
                   />
                 ) : null}
               </>
+            )}
+
+            {menuStage === "paraphrase-error" && selectionError && (
+              <SelectionErrorPanel message={selectionError} />
             )}
           </div>
         )}
