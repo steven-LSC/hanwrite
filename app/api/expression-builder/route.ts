@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { ExpressionBuilderResult } from "@/lib/types";
-import { RESPONSE_LANGUAGE, OPENAI_MODEL } from "@/lib/ai-config";
+import { getResponseLanguage, getOpenaiModel } from "@/lib/ai-config";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -16,6 +16,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const { inputText } = await request.json();
+
+    // 從 cookie 讀取設定
+    const authCookie = request.cookies.get("auth-user");
+    const cookieValue = authCookie?.value || "{}";
+    const responseLanguage = getResponseLanguage(cookieValue);
+    const openaiModel = getOpenaiModel(cookieValue);
 
     if (!inputText || typeof inputText !== "string" || !inputText.trim()) {
       const duration = Date.now() - startTime;
@@ -63,11 +69,11 @@ export async function POST(request: NextRequest) {
      {
        "type": "vocab-grammar-example",
        "vocab": [
-         {"vocab": "韓文單字", "translate": "${RESPONSE_LANGUAGE}翻譯"}
+         {"vocab": "韓文單字", "translate": "${responseLanguage}翻譯"}
        ],
        "grammar": {
          "grammar": "文法名稱",
-         "explanation": "${RESPONSE_LANGUAGE}解釋"
+         "explanation": "${responseLanguage}解釋"
        },
        "example": "範例句子（韓文）"
      }
@@ -81,7 +87,7 @@ export async function POST(request: NextRequest) {
      }
 
 **語言設定：**
-所有翻譯和解釋都應該使用 ${RESPONSE_LANGUAGE}。
+所有翻譯和解釋都應該使用 ${responseLanguage}。
 
 **語體要求（嚴格遵守）：**
 - **必須使用書面體（해라체/한다체）**，絕對不能使用口語體（例如：먹어요, 해요, 가요）
@@ -130,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     // 呼叫 OpenAI API
     const completion = await openai.chat.completions.create({
-      model: OPENAI_MODEL,
+      model: openaiModel,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `請分析以下句子：\n\n${inputText}` },

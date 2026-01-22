@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { ExpansionHint } from "@/lib/types";
-import { RESPONSE_LANGUAGE, OPENAI_MODEL } from "@/lib/ai-config";
+import { getResponseLanguage, getOpenaiModel } from "@/lib/ai-config";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -16,6 +16,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const { selectedText } = await request.json();
+
+    // 從 cookie 讀取設定
+    const authCookie = request.cookies.get("auth-user");
+    const cookieValue = authCookie?.value || "{}";
+    const responseLanguage = getResponseLanguage(cookieValue);
+    const openaiModel = getOpenaiModel(cookieValue);
 
     // 基本輸入驗證
     if (!selectedText || typeof selectedText !== "string") {
@@ -71,7 +77,7 @@ export async function POST(request: NextRequest) {
 {
   "hints": [
     {
-      "explanation": "擴展建議說明（使用 ${RESPONSE_LANGUAGE}）",
+      "explanation": "擴展建議說明（使用 ${responseLanguage}）",
       "example": "韓文例句（必須是完整的句子，以句號結尾）"
     }
   ]
@@ -79,7 +85,7 @@ export async function POST(request: NextRequest) {
 
 **重要規則：**
 1. 必須提供恰好三個擴展建議（hints 陣列必須包含三個元素）
-2. 每個建議的 explanation 必須使用 ${RESPONSE_LANGUAGE}
+2. 每個建議的 explanation 必須使用 ${responseLanguage}
 3. 每個建議的 example 必須是完整的韓文句子，以句號結尾
 4. 擴展建議應該：
    - 根據選取的句子/段落提供建議
@@ -93,15 +99,15 @@ export async function POST(request: NextRequest) {
 {
   "hints": [
     {
-      "explanation": "${RESPONSE_LANGUAGE}的建議說明",
+      "explanation": "${responseLanguage}的建議說明",
       "example": "(韓文例句)"
     },
     {
-      "explanation": "${RESPONSE_LANGUAGE}的建議說明",
+      "explanation": "${responseLanguage}的建議說明",
       "example": "(韓文例句)"
     },
     {
-      "explanation": "${RESPONSE_LANGUAGE}的建議說明",
+      "explanation": "${responseLanguage}的建議說明",
       "example": "(韓文例句)"
     }
   ]
@@ -111,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     // 呼叫 OpenAI API
     const completion = await openai.chat.completions.create({
-      model: OPENAI_MODEL,
+      model: openaiModel,
       messages: [
         { role: "system", content: systemPrompt },
         {

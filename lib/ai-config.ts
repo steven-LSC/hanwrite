@@ -4,26 +4,35 @@
  */
 
 /**
- * AI 回應的語言設定
- * 用於控制 AI 回傳的翻譯、解釋等內容的語言
- * 
- * 可選值範例：
- * - "English" - 英文（預設）
- * - "Traditional Chinese" - 繁體中文
- * - "Korean" - 韓文
- * - 其他語言名稱
+ * 從 cookie 字串解析並取得 AI 回應的語言設定
+ * @param cookieValue cookie 字串（auth-user cookie 的值）
+ * @returns 語言設定字串
  */
-export const RESPONSE_LANGUAGE = "繁體中文";
+export function getResponseLanguage(cookieValue: string): string {
+    try {
+        const parsed = JSON.parse(cookieValue)
+        if (parsed?.responseLanguage) {
+            return parsed.responseLanguage
+        }
+    } catch {
+        // 解析失敗時使用預設值
+    }
+    return "繁體中文"
+}
 
 /**
- * OpenAI Model 設定
- * 統一管理所有 AI 功能使用的 Model
- * 
- * 可選值範例：
- * - "gpt-4.1-nano" - 輕量級模型（預設）
- * - "gpt-4o" - GPT-4 Optimized
- * - "gpt-4o-mini" - GPT-4 Optimized Mini
- * - "gpt-4-turbo" - GPT-4 Turbo
- * - 其他 OpenAI 支援的模型
+ * 從 cookie 字串解析並取得 OpenAI Model 設定
+ * @param cookieValue cookie 字串（auth-user cookie 的值）
+ * @returns Model 設定字串
  */
-export const OPENAI_MODEL = "gpt-4.1-mini";
+export function getOpenaiModel(cookieValue: string): string {
+    try {
+        const parsed = JSON.parse(cookieValue)
+        if (parsed?.openaiModel) {
+            return parsed.openaiModel
+        }
+    } catch {
+        // 解析失敗時使用預設值
+    }
+    return "gpt-4.1-mini"
+}

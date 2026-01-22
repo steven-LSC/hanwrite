@@ -19,8 +19,13 @@ export async function loginAction(formData: FormData) {
     return { error: 'Incorrect username or password.' }
   }
 
-  // 設定登入 cookie
-  await setAuthCookie({ username: user.username, userId: user.id })
+  // 設定登入 cookie（包含設定）
+  await setAuthCookie({ 
+    username: user.username, 
+    userId: user.id,
+    responseLanguage: user.responseLanguage,
+    openaiModel: user.openaiModel
+  })
 
   // 跳轉到文章編輯頁
   redirect('/writings/new')

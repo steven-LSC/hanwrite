@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { OutlineSection } from "@/lib/types";
-import { RESPONSE_LANGUAGE, OPENAI_MODEL } from "@/lib/ai-config";
+import { getResponseLanguage, getOpenaiModel } from "@/lib/ai-config";
 import { convertNodesToTree, TreeNode } from "@/lib/mindmap-utils";
 
 const openai = new OpenAI({
@@ -17,6 +17,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const { title, nodes } = await request.json();
+
+    // 從 cookie 讀取設定
+    const authCookie = request.cookies.get("auth-user");
+    const cookieValue = authCookie?.value || "{}";
+    const responseLanguage = getResponseLanguage(cookieValue);
+    const openaiModel = getOpenaiModel(cookieValue);
 
     // 驗證輸入參數
     if (!title || typeof title !== "string" || !title.trim()) {
@@ -76,11 +82,11 @@ export async function POST(request: NextRequest) {
 請以 JSON 物件格式回傳，包含一個 "sections" 鍵，值為區塊陣列。每個區塊必須包含以下欄位：
 
 1. **type**：區塊類型，必須是 "introduction"、"body" 或 "conclusion"
-2. **description**：描述性指引（使用 ${RESPONSE_LANGUAGE}），說明這個區塊應該往哪個方向寫，提供寫作建議
+2. **description**：描述性指引（使用 ${responseLanguage}），說明這個區塊應該往哪個方向寫，提供寫作建議
 3. **exampleSentence**：範例句子（韓文），必須是完整的韓文句子，且必須包含心智圖上的節點內容
 
 **語言設定：**
-- description 使用 ${RESPONSE_LANGUAGE}
+- description 使用 ${responseLanguage}
 - exampleSentence 使用韓文
 
 **重要要求：**
@@ -122,7 +128,7 @@ export async function POST(request: NextRequest) {
 
     // 呼叫 OpenAI API
     const completion = await openai.chat.completions.create({
-      model: OPENAI_MODEL,
+      model: openaiModel,
       messages: [
         { role: "system", content: systemPrompt },
         {

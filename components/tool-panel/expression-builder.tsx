@@ -118,7 +118,7 @@ export function ExpressionBuilder({
       </div>
 
       {/* 結果顯示區（可滾動） */}
-      <div className="flex-1 overflow-y-auto px-[20px] py-[20px] min-h-0">
+      <div className="flex-1 overflow-y-auto px-[20px] py-[20px] min-h-0 scrollbar-hide">
         {isAnalyzing ? (
           <Loading />
         ) : error ? (

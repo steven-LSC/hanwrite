@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { ReverseOutliningResult } from "@/lib/types";
-import { RESPONSE_LANGUAGE, OPENAI_MODEL } from "@/lib/ai-config";
+import { getResponseLanguage, getOpenaiModel } from "@/lib/ai-config";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -16,6 +16,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const { paragraphs } = await request.json();
+
+    // 從 cookie 讀取設定
+    const authCookie = request.cookies.get("auth-user");
+    const cookieValue = authCookie?.value || "{}";
+    const responseLanguage = getResponseLanguage(cookieValue);
+    const openaiModel = getOpenaiModel(cookieValue);
 
     // 驗證輸入：確保 paragraphs 存在且是陣列
     if (!paragraphs || !Array.isArray(paragraphs)) {
@@ -69,8 +75,8 @@ export async function POST(request: NextRequest) {
     {
       "outline": "段落大綱（必須是一句話）",
       "reasons": [
-        "第一個原因：描述原本段落說了什麼（使用 ${RESPONSE_LANGUAGE}）",
-        "第二個原因：說明為什麼決定這樣濃縮（使用 ${RESPONSE_LANGUAGE}）"
+        "第一個原因：描述原本段落說了什麼（使用 ${responseLanguage}）",
+        "第二個原因：說明為什麼決定這樣濃縮（使用 ${responseLanguage}）"
       ]
     }
   ]
@@ -79,9 +85,9 @@ export async function POST(request: NextRequest) {
 **重要規則：**
 1. **outline 必須是一句話**：每個段落的大綱必須濃縮成單一句話
 2. **reasons 固定兩個元素**：
-   - reasons[0]：描述原本段落的主要內容和細節（使用 ${RESPONSE_LANGUAGE}）
-   - reasons[1]：說明為什麼決定這樣濃縮，解釋濃縮的邏輯和重點（使用 ${RESPONSE_LANGUAGE}）
-3. 所有解釋文字必須使用 ${RESPONSE_LANGUAGE}
+   - reasons[0]：描述原本段落的主要內容和細節（使用 ${responseLanguage}）
+   - reasons[1]：說明為什麼決定這樣濃縮，解釋濃縮的邏輯和重點（使用 ${responseLanguage}）
+3. 所有解釋文字必須使用 ${responseLanguage}
 4. results 陣列的長度必須與輸入的段落數量相同
 5. 每個段落對應一個結果物件
 
@@ -109,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     // 呼叫 OpenAI API
     const completion = await openai.chat.completions.create({
-      model: OPENAI_MODEL,
+      model: openaiModel,
       messages: [
         { role: "system", content: systemPrompt },
         {

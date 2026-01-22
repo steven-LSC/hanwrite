@@ -15,7 +15,66 @@ import { EditorProvider } from "./editor-context";
 import { RecentWriting } from "@/lib/types";
 import { getRecentWritings } from "@/lib/data/writings";
 import { clearAuthCookie } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
+import { UserMenu } from "@/components/user-menu/user-menu";
+
+function UserMenuTrigger({
+  userName,
+  currentLanguage,
+  currentModel,
+  onLanguageChange,
+  onModelChange,
+  onLogout,
+}: {
+  userName: string;
+  currentLanguage: string;
+  currentModel: string;
+  onLanguageChange: (language: string) => void;
+  onModelChange: (model: string) => void;
+  onLogout: () => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // 點擊外部關閉 menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className="relative shrink-0 border-t border-(--color-border) pt-[10px]" ref={menuRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between cursor-pointer rounded-[10px] px-[10px] py-[5px] hover:bg-slate-100 transition-colors duration-200"
+      >
+        <p className="font-medium text-[14px] text-(--color-text-secondary) overflow-hidden text-ellipsis whitespace-nowrap">
+          {userName}
+        </p>
+      </div>
+      <UserMenu
+        userName={userName}
+        currentLanguage={currentLanguage}
+        currentModel={currentModel}
+        onLanguageChange={onLanguageChange}
+        onModelChange={onModelChange}
+        onLogout={onLogout}
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+      />
+    </div>
+  );
+}
 
 function MainLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -24,6 +83,9 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
   const { showWarning } = useUnsaved();
   const [recentWritings, setRecentWritings] = useState<RecentWriting[]>([]);
   const [userName, setUserName] = useState<string>("");
+  const [userAccount, setUserAccount] = useState<string>("");
+  const [currentLanguage, setCurrentLanguage] = useState<string>("繁體中文");
+  const [currentModel, setCurrentModel] = useState<string>("gpt-4.1-mini");
   const prevWritingIdRef = useRef<string | undefined>(undefined);
 
   // 從 pathname 提取當前選中的 writingId
@@ -61,7 +123,7 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
   // 當路由切換到別的文章時，重新 fetch 文章列表
   useEffect(() => {
     const prevWritingId = prevWritingIdRef.current;
-    
+
     // 只有在切換到不同文章時才重新 fetch
     // 避免在初始載入時重複 fetch（prevWritingId 為 undefined 且 currentWritingId 也是 undefined）
     if (
@@ -71,13 +133,13 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
     ) {
       refreshRecentWritings();
     }
-    
+
     // 更新 ref
     prevWritingIdRef.current = currentWritingId;
   }, [currentWritingId]);
 
   useEffect(() => {
-    // 從 cookie 讀取使用者名稱
+    // 從 cookie 讀取使用者名稱和設定
     const cookies = document.cookie.split("; ");
     const authCookie = cookies.find((c) => c.startsWith("auth-user="));
     if (authCookie) {
@@ -86,8 +148,16 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
           decodeURIComponent(authCookie.split("=")[1])
         );
         setUserName(userData.username || "User");
+        setUserAccount(userData.username || "");
+        if (userData.responseLanguage) {
+          setCurrentLanguage(userData.responseLanguage);
+        }
+        if (userData.openaiModel) {
+          setCurrentModel(userData.openaiModel);
+        }
       } catch {
         setUserName("User");
+        setUserAccount("");
       }
     }
   }, []);
@@ -95,6 +165,74 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
   const handleLogout = async () => {
     await clearAuthCookie();
     router.push("/login");
+  };
+
+  const handleLanguageChange = async (language: string) => {
+    try {
+      const response = await fetch("/api/user-settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ responseLanguage: language }),
+      });
+
+      if (response.ok) {
+        const updatedSettings = await response.json();
+        setCurrentLanguage(updatedSettings.responseLanguage);
+
+        // 更新 cookie（重新讀取）
+        const cookies = document.cookie.split("; ");
+        const authCookie = cookies.find((c) => c.startsWith("auth-user="));
+        if (authCookie) {
+          try {
+            const userData = JSON.parse(
+              decodeURIComponent(authCookie.split("=")[1])
+            );
+            userData.responseLanguage = updatedSettings.responseLanguage;
+            document.cookie = `auth-user=${encodeURIComponent(JSON.stringify(userData))}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+          } catch {
+            // 忽略錯誤
+          }
+        }
+      }
+    } catch (error) {
+      console.error("更新語言設定失敗:", error);
+    }
+  };
+
+  const handleModelChange = async (model: string) => {
+    try {
+      const response = await fetch("/api/user-settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ openaiModel: model }),
+      });
+
+      if (response.ok) {
+        const updatedSettings = await response.json();
+        setCurrentModel(updatedSettings.openaiModel);
+
+        // 更新 cookie（重新讀取）
+        const cookies = document.cookie.split("; ");
+        const authCookie = cookies.find((c) => c.startsWith("auth-user="));
+        if (authCookie) {
+          try {
+            const userData = JSON.parse(
+              decodeURIComponent(authCookie.split("=")[1])
+            );
+            userData.openaiModel = updatedSettings.openaiModel;
+            document.cookie = `auth-user=${encodeURIComponent(JSON.stringify(userData))}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+          } catch {
+            // 忽略錯誤
+          }
+        }
+      }
+    } catch (error) {
+      console.error("更新 Model 設定失敗:", error);
+    }
   };
 
   const handleWritingClick = async (writingId: string) => {
@@ -122,8 +260,8 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
       <div className="shrink-0">
         <div
           className={`h-full bg-white border border-(--color-border) flex flex-col transition-all duration-300 ${isFocusMode
-              ? "w-[40px] py-[40px] px-0 gap-[40px]"
-              : "w-[192px] p-[20px] gap-[40px]"
+            ? "w-[40px] py-[40px] px-0 gap-[40px]"
+            : "w-[192px] p-[20px] gap-[40px]"
             }`}
         >
           {/* Logo 區域（固定） */}
@@ -164,8 +302,8 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                 }
               }}
               className={`flex items-center rounded-[10px] text-(--color-text-secondary) hover:bg-slate-100 transition-colors duration-200 cursor-pointer ${isFocusMode
-                  ? "justify-center p-[5px]"
-                  : "gap-[5px] px-[10px] py-[5px]"
+                ? "justify-center p-[5px]"
+                : "gap-[5px] px-[10px] py-[5px]"
                 }`}
             >
               <span className="material-symbols-rounded text-[20px]">
@@ -186,8 +324,8 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                 }
               }}
               className={`flex items-center rounded-[10px] text-(--color-text-secondary) hover:bg-slate-100 transition-colors duration-200 cursor-pointer ${isFocusMode
-                  ? "justify-center p-[5px]"
-                  : "gap-[5px] px-[10px] py-[5px]"
+                ? "justify-center p-[5px]"
+                : "gap-[5px] px-[10px] py-[5px]"
                 }`}
             >
               <span className="material-symbols-rounded text-[20px]">
@@ -224,14 +362,14 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
 
           {/* 使用者區域（固定，Focus 模式下隱藏） */}
           {!isFocusMode && (
-            <div className="flex items-center justify-between shrink-0 pt-[10px] border-t border-(--color-border)">
-              <p className="font-medium text-[14px] text-(--color-text-secondary) overflow-hidden text-ellipsis whitespace-nowrap">
-                {userName}
-              </p>
-              <Button variant="cancel" onClick={handleLogout}>
-                Logout
-              </Button>
-            </div>
+            <UserMenuTrigger
+              userName={userName}
+              currentLanguage={currentLanguage}
+              currentModel={currentModel}
+              onLanguageChange={handleLanguageChange}
+              onModelChange={handleModelChange}
+              onLogout={handleLogout}
+            />
           )}
         </div>
       </div>

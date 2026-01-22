@@ -12,7 +12,7 @@ const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 // 7 days in seconds
 export async function verifyUser(
   account: string,
   password: string
-): Promise<{ id: string; username: string } | null> {
+): Promise<{ id: string; username: string; responseLanguage: string; openaiModel: string } | null> {
   try {
     const user = await prisma.user.findUnique({
       where: { username: account }
@@ -27,7 +27,12 @@ export async function verifyUser(
       return null
     }
 
-    return { id: user.id, username: user.username }
+    return {
+      id: user.id,
+      username: user.username,
+      responseLanguage: user.responseLanguage,
+      openaiModel: user.openaiModel
+    }
   } catch (error) {
     console.error('驗證使用者時發生錯誤:', error)
     return null
@@ -40,13 +45,17 @@ export async function verifyUser(
 export async function setAuthCookie(user: {
   username: string
   userId: string
+  responseLanguage: string
+  openaiModel: string
 }): Promise<void> {
   const cookieStore = await cookies()
   const userData = JSON.stringify({
     username: user.username,
-    userId: user.userId
+    userId: user.userId,
+    responseLanguage: user.responseLanguage,
+    openaiModel: user.openaiModel
   })
-  
+
   cookieStore.set(COOKIE_NAME, userData, {
     httpOnly: false,
     path: '/',
@@ -61,28 +70,32 @@ export async function setAuthCookie(user: {
 export async function getAuthUser(): Promise<{
   username: string
   userId: string
+  responseLanguage: string
+  openaiModel: string
 } | null> {
   const cookieStore = await cookies()
   const authCookie = cookieStore.get(COOKIE_NAME)
-  
+
   if (!authCookie?.value) {
     return null
   }
-  
+
   try {
     const parsed = JSON.parse(authCookie.value)
     if (!parsed?.username) {
       return null
     }
 
-    if (parsed.userId) {
+    if (parsed.userId && parsed.responseLanguage && parsed.openaiModel) {
       return {
         username: parsed.username,
-        userId: parsed.userId
+        userId: parsed.userId,
+        responseLanguage: parsed.responseLanguage,
+        openaiModel: parsed.openaiModel
       }
     }
 
-    // 向後相容：舊 cookie 只有 username，補查 userId
+    // 向後相容：舊 cookie 沒有設定，從資料庫讀取
     const user = await prisma.user.findUnique({
       where: { username: parsed.username }
     })
@@ -92,7 +105,9 @@ export async function getAuthUser(): Promise<{
 
     return {
       username: parsed.username,
-      userId: user.id
+      userId: user.id,
+      responseLanguage: user.responseLanguage,
+      openaiModel: user.openaiModel
     }
   } catch {
     return null
@@ -122,7 +137,7 @@ export async function createUser(username: string, password: string): Promise<{ 
       return { success: false, error: 'Username already exists.' }
     }
 
-    // 創建新使用者
+    // 創建新使用者（使用預設值）
     await prisma.user.create({
       data: {
         username,
@@ -134,5 +149,68 @@ export async function createUser(username: string, password: string): Promise<{ 
   } catch (error) {
     console.error('創建使用者時發生錯誤:', error)
     return { success: false, error: 'Failed to create user.' }
+  }
+}
+
+/**
+ * 更新使用者設定
+ */
+export async function updateUserSettings(
+  userId: string,
+  settings: {
+    responseLanguage?: string
+    openaiModel?: string
+  }
+): Promise<{
+  responseLanguage: string
+  openaiModel: string
+} | null> {
+  try {
+    const updateData: { responseLanguage?: string; openaiModel?: string } = {}
+    if (settings.responseLanguage) {
+      updateData.responseLanguage = settings.responseLanguage
+    }
+    if (settings.openaiModel) {
+      updateData.openaiModel = settings.openaiModel
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        responseLanguage: true,
+        openaiModel: true
+      }
+    })
+
+    // 更新 cookie
+    const cookieStore = await cookies()
+    const authCookie = cookieStore.get(COOKIE_NAME)
+    if (authCookie?.value) {
+      try {
+        const parsed = JSON.parse(authCookie.value)
+        if (parsed.userId === userId) {
+          const userData = JSON.stringify({
+            username: parsed.username,
+            userId: parsed.userId,
+            responseLanguage: updatedUser.responseLanguage,
+            openaiModel: updatedUser.openaiModel
+          })
+          cookieStore.set(COOKIE_NAME, userData, {
+            httpOnly: false,
+            path: '/',
+            maxAge: COOKIE_MAX_AGE,
+            sameSite: 'lax'
+          })
+        }
+      } catch {
+        // 忽略 cookie 解析錯誤
+      }
+    }
+
+    return updatedUser
+  } catch (error) {
+    console.error('更新使用者設定時發生錯誤:', error)
+    return null
   }
 }

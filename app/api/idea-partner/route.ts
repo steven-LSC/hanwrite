@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { RESPONSE_LANGUAGE, OPENAI_MODEL } from "@/lib/ai-config";
+import { getResponseLanguage, getOpenaiModel } from "@/lib/ai-config";
 import { convertNodesToTree, TreeNode } from "@/lib/mindmap-utils";
 
 const openai = new OpenAI({
@@ -23,6 +23,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const { nodes, title } = await request.json();
+
+    // 從 cookie 讀取設定
+    const authCookie = request.cookies.get("auth-user");
+    const cookieValue = authCookie?.value || "{}";
+    const responseLanguage = getResponseLanguage(cookieValue);
+    const openaiModel = getOpenaiModel(cookieValue);
 
     // 驗證輸入參數
     if (!nodes || !Array.isArray(nodes)) {
@@ -76,7 +82,7 @@ export async function POST(request: NextRequest) {
 
 1. **nodeId**：節點的 ID（字串）
 2. **title**：節點的標籤文字（韓文，與心智圖中的 label 相同）
-3. **description**：引導問題（使用 ${RESPONSE_LANGUAGE}），幫助使用者進一步展開這個節點
+3. **description**：引導問題（使用 ${responseLanguage}），幫助使用者進一步展開這個節點
 
 **數量要求：**
 - 必須至少回傳 3 個卡片
@@ -84,7 +90,7 @@ export async function POST(request: NextRequest) {
 
 **語言設定：**
 - title 使用韓文（與心智圖中的節點 label 相同）
-- description 使用 ${RESPONSE_LANGUAGE}
+- description 使用 ${responseLanguage}
 
 **重要要求：**
 - description 應該是一個具體的引導問題，幫助使用者思考如何進一步展開這個節點
@@ -118,7 +124,7 @@ export async function POST(request: NextRequest) {
 - 必須回傳至少 3 個卡片
 - 每個 card 的 nodeId 必須對應到心智圖中實際存在的節點 ID
 - title 必須與心智圖中對應節點的 label 完全相同
-- description 必須使用 ${RESPONSE_LANGUAGE}，且應該是一個具體、有幫助的引導問題
+- description 必須使用 ${responseLanguage}，且應該是一個具體、有幫助的引導問題
 - 請確保回傳的是有效的 JSON 格式，不要包含任何額外的文字或說明。`;
 
     // 將 tree 結構轉換成文字描述，方便 LLM 理解
@@ -126,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     // 呼叫 OpenAI API
     const completion = await openai.chat.completions.create({
-      model: OPENAI_MODEL,
+      model: openaiModel,
       messages: [
         { role: "system", content: systemPrompt },
         {

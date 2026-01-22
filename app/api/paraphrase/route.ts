@@ -5,7 +5,7 @@ import {
   ParaphraseChangeInput,
   ParaphraseChange,
 } from "@/lib/types";
-import { RESPONSE_LANGUAGE, OPENAI_MODEL } from "@/lib/ai-config";
+import { getResponseLanguage, getOpenaiModel } from "@/lib/ai-config";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -74,6 +74,12 @@ export async function POST(request: NextRequest) {
   try {
     const { selectedText } = await request.json();
 
+    // 從 cookie 讀取設定
+    const authCookie = request.cookies.get("auth-user");
+    const cookieValue = authCookie?.value || "{}";
+    const responseLanguage = getResponseLanguage(cookieValue);
+    const openaiModel = getOpenaiModel(cookieValue);
+
     // 基本輸入驗證
     if (!selectedText || typeof selectedText !== "string") {
       const duration = Date.now() - startTime;
@@ -133,7 +139,7 @@ export async function POST(request: NextRequest) {
     {
       "original": "原始文字片段",
       "revised": "修改後的文字片段",
-      "explanation": "簡短解釋（使用 ${RESPONSE_LANGUAGE}）",
+      "explanation": "簡短解釋（使用 ${responseLanguage}）",
       "insertAfter": "參考文字片段（僅新增時需要）"
     }
   ]
@@ -143,7 +149,7 @@ export async function POST(request: NextRequest) {
 1. **語體檢查（最高優先級）**：所有 revised 內容必須是書面體，絕對不能使用口語體
 2. 只列出需要修改的項目，不需要修改的不列出
 3. 最多三個修改點（必須遵，不要超過三個）守
-4. 所有解釋（explanation）必須使用 ${RESPONSE_LANGUAGE}
+4. 所有解釋（explanation）必須使用 ${responseLanguage}
 5. **關鍵：original 和 revised 必須只包含「實際被修改的最小文字單位」**
    - 如果是替換單詞，只提供該單詞（例如：original: "많이", revised: "자주"）
    - 如果是替換短語，只提供該短語（例如：original: "식비하고", revised: "식비랑"）
@@ -190,7 +196,7 @@ export async function POST(request: NextRequest) {
 
     // 呼叫 OpenAI API
     const completion = await openai.chat.completions.create({
-      model: OPENAI_MODEL,
+      model: openaiModel,
       messages: [
         { role: "system", content: systemPrompt },
         {
