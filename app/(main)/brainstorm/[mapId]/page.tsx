@@ -10,7 +10,6 @@ import { IdeaPartner } from "@/components/brainstorm/idea-partner";
 import { Mindmap } from "@/components/brainstorm/mindmap";
 import { OutlineGenerator } from "@/components/brainstorm/outline-generator";
 import { type OutlineData } from "@/lib/types";
-import { getSavedOutline } from "@/lib/data/outline";
 import { findRootNode, calculateTreePositions } from "@/lib/mindmap-utils";
 import { getAllMindmaps, createMindmap, getMindmapById, updateMindmap } from "@/lib/data/mindmap";
 import { type MindmapMetadata } from "@/components/brainstorm/use-mindmap-data";
@@ -113,6 +112,7 @@ function BrainstormPageContent() {
         if (loadingRequestIdRef.current === requestId) {
           setNodes(data.nodes);
           setCurrentTitle(data.title);
+          setSavedOutline(data.outline ?? null);
         }
       })
       .catch((error) => {
@@ -159,36 +159,19 @@ function BrainstormPageContent() {
     setSelectedNodeId(nodeId);
   };
 
-  // 載入已儲存的 outline
-  useEffect(() => {
-    if (mapId === TEMP_MAP_ID) {
-      setSavedOutline(null);
-      return;
-    }
-
-    const loadSavedOutline = async () => {
-      try {
-        const outline = await getSavedOutline(mapId);
-        setSavedOutline(outline);
-      } catch (error) {
-        console.error("Failed to load saved outline:", error);
-        setSavedOutline(null);
-      }
-    };
-
-    loadSavedOutline();
-  }, [mapId]);
+  // outline 會在載入 mindmap 時一起取得，不需要單獨載入
 
   const handleOutlineClose = async () => {
     setIsOutlineGeneratorOpen(false);
     if (mapId === TEMP_MAP_ID) {
       return;
     }
+    // 重新載入 mindmap 以取得最新的 outline
     try {
-      const outline = await getSavedOutline(mapId);
-      setSavedOutline(outline);
+      const data = await getMindmapById(mapId);
+      setSavedOutline(data.outline ?? null);
     } catch (error) {
-      console.error("Failed to reload saved outline:", error);
+      console.error("Failed to reload mindmap:", error);
     }
   };
 
@@ -204,28 +187,38 @@ function BrainstormPageContent() {
     }
   };
 
-  // 新增心智圖
+  // 新增或更新心智圖
   const handleSave = async () => {
-    if (mapId !== TEMP_MAP_ID) {
-      return; // 只處理新增，不處理更新
-    }
-
     setIsSaving(true);
     try {
-      // 創建新心智圖（只設置 title）
-      const newMindmap = await createMindmap(currentTitle);
+      if (mapId === TEMP_MAP_ID) {
+        // 新增心智圖
+        // 創建新心智圖（只設置 title）
+        const newMindmap = await createMindmap(currentTitle);
 
-      // 更新 nodes（需要先創建才能更新）
-      const savedMindmap = await updateMindmap(newMindmap.id, { nodes });
+        // 更新 nodes（需要先創建才能更新）
+        const savedMindmap = await updateMindmap(newMindmap.id, { nodes });
 
-      // 將新創建的心智圖插入到 mapList 的最前面（因為後端已按 updatedAt 降序排序）
-      setMapList((prev) => [newMindmap, ...prev]);
+        // 將新創建的心智圖插入到 mapList 的最前面（因為後端已按 updatedAt 降序排序）
+        setMapList((prev) => [newMindmap, ...prev]);
 
-      // 更新 title（確保與後端同步）
-      setCurrentTitle(savedMindmap.title);
+        // 更新 title（確保與後端同步）
+        setCurrentTitle(savedMindmap.title);
 
-      // 更新 URL
-      router.replace(`/brainstorm/${savedMindmap.id}`);
+        // 更新 URL
+        router.replace(`/brainstorm/${savedMindmap.id}`);
+      } else {
+        // 更新現有心智圖
+        await updateMindmap(mapId, {
+          title: currentTitle,
+          nodes,
+        });
+
+        // 更新 mapList 中的 title（前端顯示）
+        setMapList((prev) =>
+          prev.map((map) => (map.id === mapId ? { ...map, title: currentTitle } : map))
+        );
+      }
     } catch (error) {
       console.error("Failed to save mindmap:", error);
     } finally {
@@ -355,7 +348,7 @@ function BrainstormPageContent() {
           variant="primary"
           icon="save"
           onClick={handleSave}
-          disabled={isLoading || isSaving || mapId !== TEMP_MAP_ID}
+          disabled={isLoading || isSaving}
         >
           Save
         </Button>
@@ -424,6 +417,7 @@ function BrainstormPageContent() {
         >
           <Mindmap
             initialNodes={nodesWithSelection}
+            mapId={mapId}
             onNodesChange={(updatedNodes) => {
               const nodesWithPreservedSelection = updatedNodes.map((node) => ({
                 ...node,

@@ -11,20 +11,14 @@ export interface Writing {
 // Expression Builder 結果的區塊結構
 export type ExpressionBuilderResult =
   | {
-      type: "vocab";
-      content: Array<{ vocab: string; translate: string }>;
-    }
-  | {
-      type: "grammar";
-      content: { grammar: string; explanation: string };
+      type: "vocab-grammar-example";
+      vocab: Array<{ vocab: string; translate: string }>;
+      grammar: { grammar: string; explanation: string };
+      example: string;
     }
   | {
       type: "connective";
       content: Array<string>;
-    }
-  | {
-      type: "example";
-      content: string;
     };
 
 // 最近的文章（用於 Sidebar）
@@ -133,12 +127,17 @@ export interface ReferencePanelData {
   outline: OutlineData | null;
 }
 
+export interface ExpressionBuilderState {
+  results: ExpressionBuilderResult[] | null;
+  inputText: string;
+}
+
 export interface ToolState {
   currentTool: ToolType;
   "reverse-outlining": ReverseOutliningResult | null;
   "ai-analysis": ProficiencyReport | null;
   "error-detection-correction": ErrorDetectionResult | null;
-  "expression-builder": ExpressionBuilderResult[] | null;
+  "expression-builder": ExpressionBuilderState | null;
   "reference-panel": ReferencePanelData | null;
 }
 
@@ -147,12 +146,11 @@ export type OutlineSectionType = "introduction" | "body" | "conclusion";
 
 export interface OutlineSection {
   type: OutlineSectionType;
-  description: string; // 描述性指引（英文）
-  keywordsOptions: string[]; // 關鍵字選項陣列
-  exampleSentences: string[]; // 範例句子陣列（韓文），與 keywordsOptions 一一對應
+  description: string; // 描述性指引（英文），說明這個區塊應該往哪個方向寫
+  exampleSentence: string; // 範例句子（韓文），必須包含心智圖上的節點內容
 }
 
 export interface OutlineData {
   title: string; // 心智圖名稱
-  sections: Array<OutlineSection & { selectedKeywordIndex: number }>; // 包含使用者選擇的關鍵字索引
+  sections: OutlineSection[]; // 三個區塊：introduction、body、conclusion
 }

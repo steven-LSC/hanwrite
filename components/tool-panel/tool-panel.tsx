@@ -225,11 +225,24 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
         return (
           <ExpressionBuilder
             writingId={currentWritingIdValue}
-            initialResults={toolState["expression-builder"]}
+            initialResults={toolState["expression-builder"]?.results || null}
+            initialInputText={toolState["expression-builder"]?.inputText || ""}
             onResultsChange={(results) => {
               setToolState((prev) => ({
                 ...prev,
-                "expression-builder": results,
+                "expression-builder": {
+                  results,
+                  inputText: prev["expression-builder"]?.inputText || "",
+                },
+              }));
+            }}
+            onInputTextChange={(inputText) => {
+              setToolState((prev) => ({
+                ...prev,
+                "expression-builder": {
+                  results: prev["expression-builder"]?.results || null,
+                  inputText,
+                },
               }));
             }}
           />

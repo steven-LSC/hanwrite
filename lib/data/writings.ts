@@ -73,46 +73,34 @@ let nextId = 6;
 // 假資料：Expression Builder 結果
 const mockExpressionBuilderResults: ExpressionBuilderResult[] = [
   {
-    type: "vocab",
-    content: [
+    type: "vocab-grammar-example",
+    vocab: [
       { vocab: "내년", translate: "next year" },
       { vocab: "부산", translate: "Busan" },
       { vocab: "방문하다", translate: "to visit" },
     ],
-  },
-  {
-    type: "grammar",
-    content: {
+    grammar: {
       grammar: "V-고 싶다",
       explanation: "Expresses a desire to do an action.",
     },
-  },
-  {
-    type: "example",
-    content: "내년에 부산을 방문하고 싶다.",
+    example: "내년에 부산을 방문하고 싶다.",
   },
   {
     type: "connective",
     content: ["그리고", "또한", "게다가"],
   },
   {
-    type: "vocab",
-    content: [
+    type: "vocab-grammar-example",
+    vocab: [
       { vocab: "한국어", translate: "Korean language" },
       { vocab: "열심히", translate: "diligently" },
       { vocab: "공부하다", translate: "to study" },
     ],
-  },
-  {
-    type: "grammar",
-    content: {
+    grammar: {
       grammar: "V-기를 바라다",
       explanation: "Expresses hope or desire for doing something.",
     },
-  },
-  {
-    type: "example",
-    content: "한국어를 열심히 공부하기를 바란다.",
+    example: "한국어를 열심히 공부하기를 바란다.",
   },
 ];
 
@@ -121,17 +109,17 @@ const mockExpressionBuilderResults: ExpressionBuilderResult[] = [
  */
 export async function getWriting(id: string): Promise<Writing> {
   const response = await fetch(`/api/writings/${id}`);
-  
+
   if (!response.ok) {
     if (response.status === 404) {
       throw new Error(`Writing with id ${id} not found`);
     }
     throw new Error(`Failed to fetch writing: ${response.statusText}`);
   }
-  
+
   const data = await response.json();
   const writing = data.writing;
-  
+
   // 轉換日期字串為 Date 物件
   return {
     ...writing,
@@ -145,21 +133,21 @@ export async function getWriting(id: string): Promise<Writing> {
  */
 export async function getRecentWritings(): Promise<RecentWriting[]> {
   const response = await fetch("/api/writings");
-  
+
   if (!response.ok) {
     throw new Error(`Failed to fetch recent writings: ${response.statusText}`);
   }
-  
+
   const data = await response.json();
   const writings = data.writings || [];
-  
+
   // 根據 updatedAt 降序排序（確保最新更新的在最上面）
   const sortedWritings = [...writings].sort((a, b) => {
     const dateA = new Date(a.updatedAt).getTime();
     const dateB = new Date(b.updatedAt).getTime();
     return dateB - dateA;
   });
-  
+
   return sortedWritings.map((w) => ({
     id: w.id,
     title: w.title,
@@ -167,17 +155,29 @@ export async function getRecentWritings(): Promise<RecentWriting[]> {
 }
 
 /**
- * 取得 Expression Builder 分析結果（薄抽象層）
- * 未來會改成真正的 AI API 呼叫
+ * 取得 Expression Builder 分析結果
+ * 呼叫 AI API 分析韓文句子並回傳結構化結果
  */
 export async function getExpressionBuilderResults(
   inputText: string
 ): Promise<ExpressionBuilderResult[]> {
-  // 模擬 API 延遲
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  
-  // 目前回傳假資料，未來會根據 inputText 呼叫 AI API
-  return mockExpressionBuilderResults;
+  const response = await fetch("/api/expression-builder", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ inputText }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.error || `Failed to analyze expression: ${response.statusText}`
+    );
+  }
+
+  const data = await response.json();
+  return data.results || [];
 }
 
 /**
@@ -237,7 +237,7 @@ export async function updateWriting(
 export function splitContentIntoParagraphs(content: string): string[] {
   // 使用雙換行符號分割段落
   const paragraphs = content.split("\n\n");
-  
+
   // 過濾空字串和只含空白字元的段落，並去除前後空白
   return paragraphs
     .map((p) => p.trim())

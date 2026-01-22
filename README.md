@@ -4,7 +4,28 @@
 
 ## 重要：首次設定
 
-### 1. 下載並安裝 Pretendard 字體
+### 1. 環境變數設定
+
+在專案根目錄建立 `.env.local` 檔案，並設定以下環境變數：
+
+```bash
+# OpenAI API Key（用於 Expression Builder 等 AI 功能）
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+**取得 OpenAI API Key：**
+1. 前往 [OpenAI Platform](https://platform.openai.com/)
+2. 登入或註冊帳號
+3. 前往 [API Keys](https://platform.openai.com/api-keys) 頁面
+4. 建立新的 API Key
+5. 將 Key 複製到 `.env.local` 檔案中
+
+**注意事項：**
+- `.env.local` 檔案已加入 `.gitignore`，不會被提交到版本控制
+- 請勿將 API Key 硬編碼在程式碼中
+- 在 Vercel 部署時，請在專案設定中新增環境變數
+
+### 2. 下載並安裝 Pretendard 字體
 
 本專案使用 Pretendard 字體，請依照以下步驟設定：
 
@@ -18,7 +39,7 @@
    /public/fonts/Pretendard-Medium.woff2
    ```
 
-### 2. Logo 圖片（選用）
+### 3. Logo 圖片（選用）
 
 如需更換 Logo，請：
 1. 從 Figma 設計檔下載 Logo 圖片

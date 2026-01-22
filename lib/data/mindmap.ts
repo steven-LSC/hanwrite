@@ -3,6 +3,7 @@ import {
   type MindmapData,
   type MindmapMetadata,
 } from "@/components/brainstorm/use-mindmap-data";
+import { OutlineData } from "@/lib/types";
 
 type MindmapMetadataResponse = {
   id: string;
@@ -15,6 +16,7 @@ type MindmapDataResponse = {
   id: string;
   title: string;
   nodes: Node[];
+  outline?: OutlineData | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -30,6 +32,7 @@ const parseMindmap = (map: MindmapDataResponse): MindmapData => ({
   id: map.id,
   title: map.title,
   nodes: map.nodes ?? [],
+  outline: map.outline ?? null,
   createdAt: new Date(map.createdAt),
   updatedAt: new Date(map.updatedAt),
 });

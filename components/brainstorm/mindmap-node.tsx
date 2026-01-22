@@ -3,7 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import { type NodeProps, Handle, Position } from "@xyflow/react";
 
-export function MindmapNode({ data, selected, id }: NodeProps) {
+interface MindmapNodeProps extends NodeProps {
+  readonly?: boolean;
+}
+
+export function MindmapNode({ data, selected, id, readonly = false }: MindmapNodeProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(data.label as string);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -23,26 +27,30 @@ export function MindmapNode({ data, selected, id }: NodeProps) {
     }
   };
 
-  // 如果是新 node，自動進入編輯模式
+  // 如果是新 node，自動進入編輯模式（readonly 模式下不允許）
   useEffect(() => {
-    if (data.isNew) {
+    if (data.isNew && !readonly) {
       setIsEditing(true);
     }
-  }, [data.isNew]);
+  }, [data.isNew, readonly]);
 
-  // 當新 node 被選中時，確保進入編輯模式
+  // 當新 node 被選中時，確保進入編輯模式（readonly 模式下不允許）
   useEffect(() => {
-    if (data.isNew && selected) {
+    if (data.isNew && selected && !readonly) {
       setIsEditing(true);
     }
-  }, [data.isNew, selected]);
+  }, [data.isNew, selected, readonly]);
 
   const handleTextDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsEditing(true);
+    if (!readonly) {
+      setIsEditing(true);
+    }
   };
 
   const handleNodeDoubleClick = (e: React.MouseEvent) => {
+    if (readonly) return;
+    
     // 如果雙擊的是文字區域（textarea 或顯示文字的 div），不處理（由 handleTextDoubleClick 處理）
     const target = e.target as HTMLElement;
     if (
@@ -106,7 +114,9 @@ export function MindmapNode({ data, selected, id }: NodeProps) {
   return (
     <div
       onDoubleClick={handleNodeDoubleClick}
-      className={`px-4 rounded-lg border transition-all cursor-pointer outline-none focus:outline-none focus-visible:outline-none relative h-[40px] w-[200px] flex items-center justify-center ${selected
+      className={`px-4 rounded-lg border transition-all outline-none focus:outline-none focus-visible:outline-none relative h-[40px] w-[200px] flex items-center justify-center ${readonly
+        ? "cursor-default"
+        : "cursor-pointer"} ${selected
         ? "bg-blue-50 border-blue-300"
         : "bg-(--color-bg-card) border-gray-300 hover:border-gray-400"
         }`}
@@ -148,7 +158,7 @@ export function MindmapNode({ data, selected, id }: NodeProps) {
           onKeyDown={handleKeyDown}
           onDoubleClick={handleTextDoubleClick}
           tabIndex={0}
-          autoFocus={data.isNew}
+          {...(!!data.isNew && !readonly ? { autoFocus: true } : {})}
           className="bg-transparent outline-none text-(--color-text-secondary) text-[14px] font-medium text-center resize-none w-full overflow-hidden whitespace-nowrap flex items-center"
           style={{
             lineHeight: "40px",

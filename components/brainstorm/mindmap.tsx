@@ -22,14 +22,18 @@ import { generateEdges, findAllDescendants } from "./mindmap-utils";
 
 interface MindmapProps {
   initialNodes?: Node[];
+  mapId?: string;
   onNodesChange?: (nodes: Node[]) => void;
   onCanvasClick?: () => void;
+  readonly?: boolean;
 }
 
 export function Mindmap({
   initialNodes = [],
+  mapId,
   onNodesChange,
   onCanvasClick,
+  readonly = false,
 }: MindmapProps) {
   const { screenToFlowPosition, fitView, setCenter } = useReactFlow();
   const [nodes, setNodes, onNodesChangeInternal] =
@@ -40,6 +44,7 @@ export function Mindmap({
   const isInternalUpdateRef = useRef(false);
   const prevNodesRef = useRef<Node[]>([]);
   const hasInitializedViewRef = useRef(false);
+  const prevMapIdRef = useRef<string | undefined>(mapId);
 
   // 處理節點 label 變更
   const handleLabelChange = useCallback(
@@ -157,14 +162,19 @@ export function Mindmap({
     // 只有在外部傳入的 nodes 真的改變時才更新（不是內部更新導致的）
     if (nodesChanged && !isInternalUpdateRef.current) {
       // 為 nodes 添加 callbacks，保留 selected 狀態
+      // 如果是 readonly 模式，不添加 callbacks
       const nodesWithCallbacks = initialNodes.map((node) => ({
         ...node,
         selected: node.selected,
         data: {
           ...node.data,
-          onLabelChange: (newLabel: string) =>
-            handleLabelChange(node.id, newLabel),
-          onAddChild: handleAddChild,
+          ...(readonly
+            ? {}
+            : {
+                onLabelChange: (newLabel: string) =>
+                  handleLabelChange(node.id, newLabel),
+                onAddChild: handleAddChild,
+              }),
         },
       }));
 
@@ -186,15 +196,23 @@ export function Mindmap({
       setNodes(nodesWithPreservedSelection);
       prevInitialNodesRef.current = initialNodes;
       prevNodesRef.current = nodesWithPreservedSelection;
-      // 外部更新時，重置視角初始化標記，讓新的 mindmap 也能設定視角
-      hasInitializedViewRef.current = false;
+      // 只有當 mapId 改變時才重置視角初始化標記
+      if (mapId !== prevMapIdRef.current) {
+        hasInitializedViewRef.current = false;
+        prevMapIdRef.current = mapId;
+      }
       // 外部更新時，確保標記為 false
       isInternalUpdateRef.current = false;
     }
-  }, [initialNodes, setNodes, handleLabelChange, handleAddChild]);
+  }, [initialNodes, mapId, setNodes, handleLabelChange, handleAddChild, readonly]);
 
-  // 註冊自訂 node types
-  const nodeTypes = useMemo(() => ({ default: MindmapNode }), []);
+  // 註冊自訂 node types，傳遞 readonly prop
+  const nodeTypes = useMemo(
+    () => ({
+      default: (props: any) => <MindmapNode {...props} readonly={readonly} />,
+    }),
+    [readonly]
+  );
 
   // 初始化 prevNodesRef
   useEffect(() => {
@@ -419,20 +437,24 @@ export function Mindmap({
         );
         onEdgesChange(filteredChanges);
       }}
-      onNodesDelete={(deleted) => {
-        // 當用戶按下 Delete 鍵時，刪除選中的節點
-        deleted.forEach((node) => handleDeleteNode(node.id));
-      }}
-      onPaneClick={handlePaneClick}
+      onNodesDelete={
+        readonly
+          ? undefined
+          : (deleted) => {
+              // 當用戶按下 Delete 鍵時，刪除選中的節點
+              deleted.forEach((node) => handleDeleteNode(node.id));
+            }
+      }
+      onPaneClick={readonly ? undefined : handlePaneClick}
       onNodeClick={() => onCanvasClick?.()}
       nodeTypes={nodeTypes}
       nodesDraggable={false}
       nodesConnectable={false}
-      nodesFocusable={true}
+      nodesFocusable={!readonly}
       edgesFocusable={false}
-      elementsSelectable={true}
+      elementsSelectable={!readonly}
       selectNodesOnDrag={false}
-      deleteKeyCode={["Delete", "Backspace"]}
+      deleteKeyCode={readonly ? null : ["Delete", "Backspace"]}
       proOptions={{ hideAttribution: true }}
       zoomOnDoubleClick={false}
       defaultEdgeOptions={{

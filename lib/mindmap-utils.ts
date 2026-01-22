@@ -308,3 +308,33 @@ export function findInsertIndex(
   // 如果沒有找到，插入在最後
   return insertIndex === -1 ? sorted.length : insertIndex;
 }
+
+/**
+ * Tree 節點結構（用於 API 傳遞）
+ */
+export interface TreeNode {
+  id: string;
+  label: string;
+  parentId: string | null;
+}
+
+/**
+ * 將 ReactFlow Node[] 轉換成扁平化 tree 結構
+ * 此函數會被 outline-generator 和 idea-partner 共用
+ */
+export function convertNodesToTree(nodes: Node[]): TreeNode[] {
+  return nodes
+    .filter((node) => {
+      // 過濾掉空 label 的節點
+      const label = node.data.label as string | undefined;
+      return label && label.trim().length > 0;
+    })
+    .map((node) => {
+      const parentId = node.data.parentId as string | null | undefined;
+      return {
+        id: node.id,
+        label: (node.data.label as string).trim(),
+        parentId: parentId || null,
+      };
+    });
+}

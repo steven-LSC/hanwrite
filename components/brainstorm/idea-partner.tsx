@@ -105,22 +105,29 @@ export function IdeaPartner({
   };
 
   const handleSkip = (nodeId: string) => {
-    // 確保卡片被選中
-    if (selectedCardNodeId !== nodeId) {
-      setSelectedCardNodeId(nodeId);
+    // 直接標記為 skipped，不需要高亮節點
+    setSkippedCards((prev) => new Set(prev).add(nodeId));
+    // 如果當前選中的是這個節點，清除選中狀態
+    if (selectedCardNodeId === nodeId) {
+      setSelectedCardNodeId(null);
       if (onNodeSelect) {
-        onNodeSelect(nodeId);
+        onNodeSelect(null);
       }
     }
-    setSkippedCards((prev) => new Set(prev).add(nodeId));
   };
 
   const handleRevert = (nodeId: string) => {
+    // 移除 skipped 狀態
     setSkippedCards((prev) => {
       const next = new Set(prev);
       next.delete(nodeId);
       return next;
     });
+    // 高亮卡片和節點
+    setSelectedCardNodeId(nodeId);
+    if (onNodeSelect) {
+      onNodeSelect(nodeId);
+    }
   };
 
   const handleAddBlock = async (nodeId: string) => {

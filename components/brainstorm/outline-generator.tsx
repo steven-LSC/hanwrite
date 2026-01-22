@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { type Node } from "@xyflow/react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
-import { OutlineData, OutlineSectionType } from "@/lib/types";
+import { StatusIndicator } from "@/components/ui/status-indicator";
+import { OutlineData } from "@/lib/types";
 import { generateOutline, saveOutline } from "@/lib/data/outline";
 
 interface OutlineGeneratorProps {
@@ -27,83 +28,24 @@ export function OutlineGenerator({
 }: OutlineGeneratorProps) {
   const [outline, setOutline] = useState<OutlineData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState<OutlineSectionType | null>(
-    null
-  );
-  const dropdownRefs = useRef<
-    Record<OutlineSectionType, HTMLDivElement | null>
-  >({
-    introduction: null,
-    body: null,
-    conclusion: null,
-  });
-
-  // 遷移舊格式資料：將 exampleSentence 轉換為 exampleSentences
-  const migrateOutlineData = (data: OutlineData): OutlineData => {
-    return {
-      ...data,
-      sections: data.sections.map((section) => {
-        // 如果已經是新格式，直接返回
-        if (section.exampleSentences) {
-          return section;
-        }
-        // 如果是舊格式，轉換為新格式
-        const oldSection = section as any;
-        if (oldSection.exampleSentence) {
-          return {
-            ...section,
-            exampleSentences: section.keywordsOptions.map(
-              () => oldSection.exampleSentence
-            ),
-          };
-        }
-        // 如果都沒有，提供空陣列
-        return {
-          ...section,
-          exampleSentences: section.keywordsOptions.map(() => ""),
-        };
-      }),
-    };
-  };
+  const [isSaving, setIsSaving] = useState(false);
 
   // 當 modal 開啟時，如果有 savedOutline 就使用它，否則清空
   useEffect(() => {
     if (isOpen) {
       if (savedOutline) {
-        setOutline(migrateOutlineData(savedOutline));
+        setOutline(savedOutline);
       } else {
         setOutline(null);
       }
-      setOpenDropdown(null);
     }
   }, [isOpen, savedOutline]);
-
-  // 點擊外部關閉 dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (openDropdown) {
-        const ref = dropdownRefs.current[openDropdown];
-        const target = event.target as HTMLElement;
-        if (ref && target && !ref.contains(target)) {
-          setOpenDropdown(null);
-        }
-      }
-    };
-
-    if (openDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [openDropdown]);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
       const generated = await generateOutline(title, nodes);
-      setOutline(migrateOutlineData(generated));
+      setOutline(generated);
     } catch (error) {
       console.error("Failed to generate outline:", error);
     } finally {
@@ -115,7 +57,7 @@ export function OutlineGenerator({
     setIsGenerating(true);
     try {
       const generated = await generateOutline(title, nodes);
-      setOutline(migrateOutlineData(generated));
+      setOutline(generated);
     } catch (error) {
       console.error("Failed to regenerate outline:", error);
     } finally {
@@ -126,41 +68,17 @@ export function OutlineGenerator({
   const handleSave = async () => {
     if (!outline) return;
 
+    setIsSaving(true);
     try {
       await saveOutline(mapId, outline);
-      onClose();
+      // Save 後不關閉 modal，讓使用者可以繼續查看或修改
     } catch (error) {
       console.error("Failed to save outline:", error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleKeywordSelect = (
-    sectionType: OutlineSectionType,
-    index: number
-  ) => {
-    if (!outline) return;
-
-    setOutline({
-      ...outline,
-      sections: outline.sections.map((section) =>
-        section.type === sectionType
-          ? { ...section, selectedKeywordIndex: index }
-          : section
-      ),
-    });
-    setOpenDropdown(null);
-  };
-
-  const toggleDropdown = (sectionType: OutlineSectionType) => {
-    setOpenDropdown(openDropdown === sectionType ? null : sectionType);
-  };
-
-  const getSelectedKeyword = (sectionType: OutlineSectionType): string => {
-    if (!outline) return "";
-    const section = outline.sections.find((s) => s.type === sectionType);
-    if (!section) return "";
-    return section.keywordsOptions[section.selectedKeywordIndex] || "";
-  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} closeOnBackdropClick={true}>
@@ -221,58 +139,13 @@ export function OutlineGenerator({
                     {section.description}
                   </p>
 
-                  {/* 關鍵字下拉選單 */}
-                  <div className="relative">
-                    <button
-                      onClick={() => toggleDropdown(section.type)}
-                      className="w-full bg-white border border-(--color-border) rounded-[5px] px-[10px] py-[5px] flex items-center justify-between hover:bg-gray-50 transition-colors"
-                    >
-                      <span className="text-[14px] text-(--color-text-secondary) font-medium">
-                        {getSelectedKeyword(section.type)}
-                      </span>
-                      <span className="material-symbols-rounded text-[20px] text-(--color-text-secondary)">
-                        {openDropdown === section.type
-                          ? "expand_less"
-                          : "expand_more"}
-                      </span>
-                    </button>
-
-                    {/* Dropdown 選項列表 */}
-                    {openDropdown === section.type && (
-                      <div
-                        ref={(el) => {
-                          dropdownRefs.current[section.type] = el;
-                        }}
-                        className="absolute top-[calc(100%+5px)] left-0 w-full bg-white border border-(--color-border) rounded-[10px] shadow-lg z-50"
-                      >
-                        {section.keywordsOptions.map((keyword, index) => (
-                          <button
-                            key={index}
-                            onClick={() =>
-                              handleKeywordSelect(section.type, index)
-                            }
-                            className={`w-full text-left px-[10px] py-[8px] text-[14px] text-(--color-text-secondary) transition-colors ${section.selectedKeywordIndex === index
-                              ? "bg-slate-100 font-medium"
-                              : "hover:bg-slate-50"
-                              } ${index === 0 ? "rounded-t-[10px]" : ""} ${index === section.keywordsOptions.length - 1
-                                ? "rounded-b-[10px]"
-                                : ""
-                              }`}
-                          >
-                            {keyword}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
                   {/* 範例句子 */}
                   <div className="flex flex-col gap-[5px]">
                     <p className="text-[14px] text-(--color-text-tertiary)">
                       Example sentence:
                     </p>
                     <p className="text-[14px] text-(--color-text-secondary) font-medium">
-                      {section.exampleSentences[section.selectedKeywordIndex] || ""}
+                      {section.exampleSentence}
                     </p>
                   </div>
                 </div>
@@ -283,23 +156,26 @@ export function OutlineGenerator({
 
         {/* 按鈕區域 */}
         {outline && (
-          <div className="px-[30px] py-[20px] border-t border-(--color-border) flex items-center justify-end gap-[10px] shrink-0">
-            <Button
-              variant="cancel"
-              icon="replay"
-              onClick={handleRegenerate}
-              disabled={isGenerating}
-            >
-              Regenerate
-            </Button>
-            <Button
-              variant="primary"
-              icon="save"
-              onClick={handleSave}
-              disabled={isGenerating}
-            >
-              Save
-            </Button>
+          <div className="px-[30px] py-[20px] border-t border-(--color-border) flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-[10px] ml-auto">
+              {isSaving && <StatusIndicator text="saving" />}
+              <Button
+                variant="cancel"
+                icon="replay"
+                onClick={handleRegenerate}
+                disabled={isGenerating || isSaving}
+              >
+                Regenerate
+              </Button>
+              <Button
+                variant="primary"
+                icon="save"
+                onClick={handleSave}
+                disabled={isGenerating || isSaving}
+              >
+                Save
+              </Button>
+            </div>
           </div>
         )}
       </div>

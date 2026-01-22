@@ -26,6 +26,7 @@ export async function GET(
       id: true,
       title: true,
       nodes: true,
+      outline: true,
       createdAt: true,
       updatedAt: true,
     },

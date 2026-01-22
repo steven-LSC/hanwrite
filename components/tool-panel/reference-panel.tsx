@@ -12,11 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Mindmap } from "@/components/brainstorm/mindmap";
 import {
   type MindmapData,
+  type MindmapMetadata,
   prepareMindmapNodes,
 } from "@/components/brainstorm/use-mindmap-data";
 import { type OutlineData, type ReferencePanelData } from "@/lib/types";
-import { getAllMindmaps } from "@/lib/data/mindmap";
-import { getSavedOutline } from "@/lib/data/outline";
+import { getAllMindmaps, getMindmapById } from "@/lib/data/mindmap";
 
 export interface ReferencePanelHandle {
   openModal: () => void;
@@ -32,13 +32,11 @@ export const ReferencePanel = forwardRef<
   ReferencePanelProps
 >(({ initialData, onDataChange }, ref) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [mindmaps, setMindmaps] = useState<MindmapData[]>([]);
+  const [mindmaps, setMindmaps] = useState<MindmapMetadata[]>([]);
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
-  const [selectedOutline, setSelectedOutline] = useState<OutlineData | null>(
-    null
-  );
+  const [selectedMindmapData, setSelectedMindmapData] = useState<MindmapData | null>(null);
   const [isLoadingMindmaps, setIsLoadingMindmaps] = useState(false);
-  const [isLoadingOutline, setIsLoadingOutline] = useState(false);
+  const [isLoadingMindmapData, setIsLoadingMindmapData] = useState(false);
   // 已載入的資料（用於顯示在初始狀態）
   const [loadedData, setLoadedData] = useState<ReferencePanelData | null>(
     initialData || null
@@ -62,33 +60,31 @@ export const ReferencePanel = forwardRef<
     } else {
       // Modal 關閉時重置狀態
       setSelectedMapId(null);
-      setSelectedOutline(null);
+      setSelectedMindmapData(null);
     }
   }, [isModalOpen]);
 
-  // 當選擇心智圖時載入對應的 outline
+  // 當選擇心智圖時載入完整的資料（包含 nodes 和 outline）
   useEffect(() => {
     if (selectedMapId) {
-      setIsLoadingOutline(true);
-      getSavedOutline(selectedMapId)
-        .then((outline) => {
-          setSelectedOutline(outline);
+      setIsLoadingMindmapData(true);
+      getMindmapById(selectedMapId)
+        .then((mindmapData) => {
+          setSelectedMindmapData(mindmapData);
         })
         .catch((error) => {
-          console.error("Failed to load outline:", error);
-          setSelectedOutline(null);
+          console.error("Failed to load mindmap data:", error);
+          setSelectedMindmapData(null);
         })
         .finally(() => {
-          setIsLoadingOutline(false);
+          setIsLoadingMindmapData(false);
         });
     } else {
-      // 沒有選擇時，清空 outline
-      setSelectedOutline(null);
-      setIsLoadingOutline(false);
+      // 沒有選擇時，清空資料
+      setSelectedMindmapData(null);
+      setIsLoadingMindmapData(false);
     }
   }, [selectedMapId]);
-
-  const selectedMindmap = mindmaps.find((map) => map.id === selectedMapId);
 
   // 當 initialData 改變時同步狀態
   useEffect(() => {
@@ -98,9 +94,9 @@ export const ReferencePanel = forwardRef<
   }, [initialData]);
 
   // 預處理選中的心智圖 nodes，確保位置正確計算
-  const preparedNodes = selectedMindmap
+  const preparedNodes = selectedMindmapData
     ? prepareMindmapNodes(
-      selectedMindmap.nodes,
+      selectedMindmapData.nodes,
       () => { }, // 預覽模式下不需要 label change callback
       () => { } // 預覽模式下不需要 add child callback
     )
@@ -117,14 +113,14 @@ export const ReferencePanel = forwardRef<
 
   // 處理 Load 按鈕點擊
   const handleLoad = () => {
-    if (selectedMindmap) {
+    if (selectedMindmapData) {
       const dataToLoad: ReferencePanelData = {
         mindmap: {
-          id: selectedMindmap.id,
-          title: selectedMindmap.title,
-          nodes: selectedMindmap.nodes,
+          id: selectedMindmapData.id,
+          title: selectedMindmapData.title,
+          nodes: selectedMindmapData.nodes,
         },
-        outline: selectedOutline,
+        outline: selectedMindmapData.outline ?? null,
       };
       setLoadedData(dataToLoad);
       if (onDataChange) {
@@ -154,6 +150,7 @@ export const ReferencePanel = forwardRef<
                 <Mindmap
                   initialNodes={loadedPreparedNodes}
                   onNodesChange={() => { }}
+                  readonly={true}
                 />
               </ReactFlowProvider>
             ) : (
@@ -171,14 +168,14 @@ export const ReferencePanel = forwardRef<
           <h3 className="font-medium text-[16px] text-(--color-text-primary)">
             Outline
           </h3>
-          <div className="bg-white border border-(--color-border) rounded-[10px] p-[20px] h-full overflow-y-auto">
+          <div className="bg-white border border-(--color-border) rounded-[10px] p-[20px] h-full overflow-y-auto scrollbar-hide">
             {loadedData?.mindmap ? (
               loadedData.outline ? (
-                <div className="flex flex-col gap-[30px]">
+                <div className="flex flex-col gap-[20px]">
                   {loadedData.outline.sections.map((section) => (
                     <div
                       key={section.type}
-                      className="flex flex-col gap-[10px]"
+                      className="flex flex-col gap-[5px]"
                     >
                       {/* 區塊標題 */}
                       <h4 className="font-medium text-[16px] text-(--color-text-primary)">
@@ -193,17 +190,6 @@ export const ReferencePanel = forwardRef<
                       <p className="text-[14px] text-(--color-text-highlight) font-medium">
                         {section.description}
                       </p>
-
-                      {/* 關鍵字（只顯示，不可編輯） */}
-                      <div className="bg-(--color-bg-secondary) border border-(--color-border) rounded-[5px] px-[10px] py-[5px]">
-                        <span className="text-[14px] text-(--color-text-secondary) font-medium">
-                          {
-                            section.keywordsOptions[
-                            section.selectedKeywordIndex
-                            ]
-                          }
-                        </span>
-                      </div>
 
                       {/* 範例句子 */}
                       <div className="flex flex-col gap-[5px]">
@@ -272,8 +258,8 @@ export const ReferencePanel = forwardRef<
                       key={map.id}
                       onClick={() => setSelectedMapId(map.id)}
                       className={`w-full text-left px-[10px] py-[8px] rounded-[8px] text-[14px] transition-colors ${selectedMapId === map.id
-                          ? "bg-blue-50 text-(--color-text-secondary) font-medium"
-                          : "text-(--color-text-secondary) hover:bg-slate-50"
+                        ? "bg-blue-50 text-(--color-text-secondary) font-medium"
+                        : "text-(--color-text-secondary) hover:bg-slate-50"
                         }`}
                     >
                       {map.title}
@@ -291,11 +277,18 @@ export const ReferencePanel = forwardRef<
                   Mind map preview
                 </h3>
                 <div className="bg-white border border-(--color-border) rounded-[10px] w-full h-full overflow-hidden relative">
-                  {selectedMindmap ? (
+                  {isLoadingMindmapData ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-[14px] text-(--color-text-tertiary)">
+                        Loading...
+                      </p>
+                    </div>
+                  ) : selectedMindmapData ? (
                     <ReactFlowProvider key={selectedMapId}>
                       <Mindmap
                         initialNodes={preparedNodes}
                         onNodesChange={() => { }}
+                        readonly={true}
                       />
                     </ReactFlowProvider>
                   ) : (
@@ -313,23 +306,23 @@ export const ReferencePanel = forwardRef<
                 <h3 className="font-medium text-[14px] text-(--color-text-tertiary)">
                   Outline preview
                 </h3>
-                <div className="bg-white border border-(--color-border) rounded-[10px] p-[20px] w-full h-full overflow-y-auto">
+                <div className="bg-white border border-(--color-border) rounded-[10px] p-[20px] w-full h-full overflow-y-auto scrollbar-hide">
                   {!selectedMapId ? (
                     <div className="flex items-center justify-center h-full">
                       <p className="text-[14px] text-(--color-text-tertiary)">
                         Select a mind map to preview
                       </p>
                     </div>
-                  ) : isLoadingOutline ? (
-                    <p className="text-[14px] text-(--color-text-tertiary)">
+                  ) : isLoadingMindmapData ? (
+                    <p className="flex items-center justify-center h-full text-[14px] text-(--color-text-tertiary)">
                       Loading...
                     </p>
-                  ) : selectedOutline ? (
-                    <div className="flex flex-col gap-[30px]">
-                      {selectedOutline.sections.map((section) => (
+                  ) : selectedMindmapData?.outline ? (
+                    <div className="flex flex-col gap-[20px]">
+                      {selectedMindmapData.outline.sections.map((section) => (
                         <div
                           key={section.type}
-                          className="flex flex-col gap-[10px]"
+                          className="flex flex-col gap-[5px]"
                         >
                           {/* 區塊標題 */}
                           <h4 className="font-medium text-[16px] text-(--color-text-primary)">
@@ -344,17 +337,6 @@ export const ReferencePanel = forwardRef<
                           <p className="text-[14px] text-(--color-text-highlight) font-medium">
                             {section.description}
                           </p>
-
-                          {/* 關鍵字（只顯示，不可編輯） */}
-                          <div className="bg-(--color-bg-secondary) border border-(--color-border) rounded-[5px] px-[10px] py-[5px]">
-                            <span className="text-[14px] text-(--color-text-secondary) font-medium">
-                              {
-                                section.keywordsOptions[
-                                section.selectedKeywordIndex
-                                ]
-                              }
-                            </span>
-                          </div>
 
                           {/* 範例句子 */}
                           <div className="flex flex-col gap-[5px]">
@@ -383,7 +365,7 @@ export const ReferencePanel = forwardRef<
             <Button
               variant="primary"
               onClick={handleLoad}
-              disabled={!selectedMindmap}
+              disabled={!selectedMindmapData}
             >
               Load
             </Button>

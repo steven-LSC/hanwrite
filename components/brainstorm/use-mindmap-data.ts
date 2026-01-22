@@ -3,6 +3,7 @@ import {
   findRootNode,
   calculateTreePositions,
 } from "@/lib/mindmap-utils";
+import { OutlineData } from "@/lib/types";
 
 export type MindmapMetadata = {
   id: string;
@@ -15,6 +16,7 @@ export type MindmapData = {
   id: string;
   title: string;
   nodes: Node[];
+  outline?: OutlineData | null;
   createdAt?: Date;
   updatedAt?: Date;
 };
