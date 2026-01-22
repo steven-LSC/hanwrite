@@ -49,7 +49,7 @@ interface ToolPanelProps {
   // 未來可以擴展其他工具
 }
 
-export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({}, ref) => {
+export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => {
   const params = useParams();
   const writingId = params.writingId as string | undefined;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

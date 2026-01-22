@@ -22,10 +22,15 @@ export interface EditorHighlightRef {
   replaceText: (position: { start: number; end: number }, newText: string) => void;
 }
 
+export interface EditorContentRef {
+  getContent: () => string;
+}
+
 interface EditorContextType {
   selectedErrorIndex: number | null;
   setSelectedErrorIndex: (index: number | null) => void;
   editorHighlightRef: React.RefObject<EditorHighlightRef | null>;
+  editorContentRef: React.RefObject<EditorContentRef | null>;
 }
 
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
@@ -35,10 +40,11 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     null
   );
   const editorHighlightRef = useRef<EditorHighlightRef | null>(null);
+  const editorContentRef = useRef<EditorContentRef | null>(null);
 
   return (
     <EditorContext.Provider
-      value={{ selectedErrorIndex, setSelectedErrorIndex, editorHighlightRef }}
+      value={{ selectedErrorIndex, setSelectedErrorIndex, editorHighlightRef, editorContentRef }}
     >
       {children}
     </EditorContext.Provider>

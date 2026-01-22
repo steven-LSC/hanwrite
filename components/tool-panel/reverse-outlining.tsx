@@ -7,12 +7,13 @@ import React, {
   useEffect,
 } from "react";
 import {
-  getWriting,
   splitContentIntoParagraphs,
   getReverseOutliningResults,
 } from "@/lib/data/writings";
 import { ReverseOutliningResult } from "@/lib/types";
 import { Loading } from "../ui/loading";
+import { ErrorMessage } from "../ui/error-message";
+import { useEditor } from "@/app/(main)/editor-context";
 
 export interface ReverseOutliningHandle {
   handleAnalyze: () => Promise<void>;
@@ -22,37 +23,47 @@ interface ReverseOutliningProps {
   writingId?: string;
   initialResults: ReverseOutliningResult | null;
   onResultsChange: (results: ReverseOutliningResult) => void;
+  content?: string; // 當前編輯器中的文章內容
 }
 
 export const ReverseOutlining = forwardRef<
   ReverseOutliningHandle,
   ReverseOutliningProps
->(({ writingId, initialResults, onResultsChange }, ref) => {
+>(({ writingId, initialResults, onResultsChange, content }, ref) => {
+  const { editorContentRef } = useEditor();
   const [results, setResults] = useState<ReverseOutliningResult | null>(
     initialResults
   );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set()); // 預設都不展開
+  const [error, setError] = useState<string | null>(null);
 
   // 當 writingId 或 initialResults 改變時，同步狀態
   useEffect(() => {
     setResults(initialResults);
     // 重置展開狀態
     setExpandedCards(new Set());
+    // 清除錯誤狀態
+    setError(null);
   }, [writingId, initialResults]);
 
   const handleAnalyze = async () => {
-    if (!writingId || writingId === "new") {
-      return;
-    }
-
     setIsAnalyzing(true);
+    setError(null); // 清除之前的錯誤
+
     try {
-      // 取得文章內容
-      const writing = await getWriting(writingId);
+      // 優先使用 prop 傳入的 content，否則從 context 取得當前編輯器內容
+      const currentContent = content || editorContentRef.current?.getContent() || "";
 
       // 分段
-      const paragraphs = splitContentIntoParagraphs(writing.content);
+      const paragraphs = splitContentIntoParagraphs(currentContent);
+
+      // 檢查段落是否為空（在呼叫 API 前）
+      if (paragraphs.length === 0) {
+        setError("文章內容為空，無法進行分析");
+        setIsAnalyzing(false);
+        return;
+      }
 
       // 取得分析結果
       const analysisResults = await getReverseOutliningResults(paragraphs);
@@ -62,8 +73,16 @@ export const ReverseOutlining = forwardRef<
       onResultsChange(analysisResults);
       // 重置展開狀態，預設都不展開
       setExpandedCards(new Set());
+      // 清除錯誤狀態
+      setError(null);
     } catch (error) {
       console.error("Failed to analyze:", error);
+      // 設定錯誤訊息
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError("分析失敗，請稍後再試");
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -90,6 +109,17 @@ export const ReverseOutlining = forwardRef<
   // 載入中狀態
   if (isAnalyzing) {
     return <Loading />;
+  }
+
+  // 如果有錯誤，顯示錯誤訊息（優先於結果顯示）
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex items-center gap-[10px]">
+          <ErrorMessage message={error} />
+        </div>
+      </div>
+    );
   }
 
   // 未分析時顯示提示訊息

@@ -24,7 +24,7 @@ import {
   ParaphraseResult,
 } from "@/lib/types";
 import { useFocus } from "@/app/(main)/focus-context";
-import { useEditor, EditorHighlightRef, ErrorPosition } from "@/app/(main)/editor-context";
+import { useEditor, EditorHighlightRef, EditorContentRef, ErrorPosition } from "@/app/(main)/editor-context";
 
 interface EditorProps {
   initialTitle?: string;
@@ -52,7 +52,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     ref
   ) => {
     const { isFocusMode, toggleFocus } = useFocus();
-    const { editorHighlightRef } = useEditor();
+    const { editorHighlightRef, editorContentRef } = useEditor();
     const [title, setTitle] = useState(initialTitle);
     const [content, setContent] = useState(initialContent);
     const [isSaving, setIsSaving] = useState(false);
@@ -607,6 +607,11 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       },
       clearHighlight,
       replaceText,
+    }));
+
+    // 暴露 content 方法給 context
+    useImperativeHandle(editorContentRef, () => ({
+      getContent: () => content,
     }));
 
     // 暴露方法給父元件

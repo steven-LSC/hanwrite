@@ -246,60 +246,28 @@ export function splitContentIntoParagraphs(content: string): string[] {
 
 /**
  * 取得 Reverse Outlining 分析結果（薄抽象層）
- * 未來會改成真正的 AI API 呼叫
+ * 呼叫 AI API 分析段落並回傳結構化結果
  */
 export async function getReverseOutliningResults(
   paragraphs: string[]
 ): Promise<ReverseOutliningResult> {
-  // 模擬 API 延遲
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  const response = await fetch("/api/reverse-outlining", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ paragraphs }),
+  });
 
-  // 假資料：為 id:1 的文章設計四段假資料
-  const mockResults: ReverseOutliningResult = [
-    {
-      outline: "지난 여름방학에 가족과 함께 부산 여행을 갔다.",
-      reasons: [
-        "Original includes anticipation, family reunion, and first-time excitement.",
-        "Outline shows only the main fact of going on a trip with family.",
-      ],
-    },
-    {
-      outline: "첫날 해운대에서 산책하며 즐거운 시간을 보냈다.",
-      reasons: [
-        "Original describes the beach scenery, walking with sibling, taking photos, and parents' joy.",
-        "Outline summarizes the first day activity at Haeundae in a concise way.",
-      ],
-    },
-    {
-      outline: "둘째 날 자갈치 시장을 구경하고 음식을 맛보았다.",
-      reasons: [
-        "Original details the market atmosphere, shopping, and specific food experiences.",
-        "Outline captures the essence of visiting Jagalchi Market and tasting food.",
-      ],
-    },
-    {
-      outline: "부산 여행은 가족에게 특별한 추억으로 남았다.",
-      reasons: [
-        "Original mentions specific memories like wave sounds, market atmosphere, and family laughter.",
-        "Outline expresses the overall sentiment that the trip became a special memory.",
-      ],
-    },
-  ];
-
-  // 如果段落數量與假資料不同，則根據段落數量回傳對應的結果
-  // 目前只處理 id:1 的文章（4段），其他情況回傳空陣列或重複使用假資料
-  if (paragraphs.length === 4) {
-    return mockResults;
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.error || `Failed to analyze reverse outline: ${response.statusText}`
+    );
   }
 
-  // 其他情況：為每個段落產生基本的大綱和解釋
-  return paragraphs.map((paragraph, index) => ({
-    outline: paragraph.split(".")[0] + ".", // 簡單取第一句作為大綱
-    reasons: [
-      `Original paragraph ${index + 1} contains detailed information.`,
-      `Outline summarizes the main point of paragraph ${index + 1}.`,
-    ],
-  }));
+  const data = await response.json();
+  return data.results || [];
 }
 
 /**
