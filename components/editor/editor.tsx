@@ -130,24 +130,42 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       // 複製元素以避免修改原始 DOM
       const clone = element.cloneNode(true) as HTMLElement;
 
-      // 將所有 <br> 標籤轉換為換行符號
-      const brElements = clone.querySelectorAll("br");
-      brElements.forEach((br) => {
-        const textNode = document.createTextNode("\n");
-        br.parentNode?.replaceChild(textNode, br);
-      });
+      const isBlockElement = (node: Node): boolean => {
+        return (
+          node.nodeType === Node.ELEMENT_NODE &&
+          ["DIV", "P"].includes((node as HTMLElement).tagName)
+        );
+      };
 
-      // 將所有 <div> 和 <p> 標籤轉換為換行符號（除了第一個）
-      const blockElements = clone.querySelectorAll("div, p");
-      blockElements.forEach((block, index) => {
-        if (index > 0) {
-          const textNode = document.createTextNode("\n");
-          block.parentNode?.insertBefore(textNode, block);
+      const extractText = (node: Node): string => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          return node.textContent || "";
         }
-      });
 
-      // 取得純文字內容
-      return clone.textContent || "";
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+          return "";
+        }
+
+        const elementNode = node as HTMLElement;
+        if (elementNode.tagName === "BR") {
+          return "\n";
+        }
+
+        let text = "";
+        elementNode.childNodes.forEach((child, index) => {
+          const childText = extractText(child);
+          if (index > 0 && isBlockElement(child) && !text.endsWith("\n")) {
+            if (childText !== "\n") {
+              text += "\n";
+            }
+          }
+          text += childText;
+        });
+
+        return text;
+      };
+
+      return extractText(clone);
     };
 
     // Helper 函數：將純文字轉換為 HTML（將 \n 轉換為 <br>）
