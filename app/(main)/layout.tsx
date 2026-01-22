@@ -63,7 +63,6 @@ function UserMenuTrigger({
         </p>
       </div>
       <UserMenu
-        userName={userName}
         currentLanguage={currentLanguage}
         currentModel={currentModel}
         onLanguageChange={onLanguageChange}
