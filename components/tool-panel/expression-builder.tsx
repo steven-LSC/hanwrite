@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "../ui/button";
 import { Loading } from "../ui/loading";
+import { ErrorMessage } from "../ui/error-message";
 import { ExpressionBuilderResult } from "@/lib/types";
 import { getExpressionBuilderResults } from "@/lib/data/writings";
 
@@ -26,12 +27,15 @@ export function ExpressionBuilder({
     initialResults || []
   );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   // 追蹤元件是否已掛載，避免在已卸載的元件上設定狀態
   const isMountedRef = useRef(true);
 
   // 當 writingId、initialResults 或 initialInputText 改變時，同步狀態
   useEffect(() => {
     setResults(initialResults || []);
+    // 清除錯誤狀態
+    setError(null);
   }, [writingId, initialResults]);
 
   useEffect(() => {
@@ -53,10 +57,17 @@ export function ExpressionBuilder({
   };
 
   const handleAnalyze = async () => {
-    if (!inputText.trim()) return;
-
     setIsAnalyzing(true);
+    setError(null); // 清除之前的錯誤
+
     try {
+      // 檢查輸入是否為空
+      if (!inputText.trim()) {
+        setError("輸入內容為空，無法進行分析");
+        setIsAnalyzing(false);
+        return;
+      }
+
       const analysisResults = await getExpressionBuilderResults(inputText);
       // 只有在元件還掛載時才更新本地狀態
       if (isMountedRef.current) {
@@ -65,10 +76,17 @@ export function ExpressionBuilder({
       }
       // 無論元件是否掛載，都要通知父元件更新狀態（這樣結果才會被保存）
       onResultsChange(analysisResults);
+      // 清除錯誤狀態
+      setError(null);
     } catch (error) {
       console.error("Analysis failed:", error);
-      // 只有在元件還掛載時才更新狀態
+      // 設定錯誤訊息
       if (isMountedRef.current) {
+        if (error instanceof Error) {
+          setError(error.message);
+        } else {
+          setError("分析失敗，請稍後再試");
+        }
         setIsAnalyzing(false);
       }
     }
@@ -103,6 +121,12 @@ export function ExpressionBuilder({
       <div className="flex-1 overflow-y-auto px-[20px] py-[20px] min-h-0">
         {isAnalyzing ? (
           <Loading />
+        ) : error ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="flex items-center gap-[10px]">
+              <ErrorMessage message={error} />
+            </div>
+          </div>
         ) : (
           <div className="flex flex-col gap-[10px]">
             {results.map((result, index) => (
