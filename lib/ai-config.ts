@@ -13,7 +13,7 @@
  * - "Korean" - 韓文
  * - 其他語言名稱
  */
-export const RESPONSE_LANGUAGE = "English";
+export const RESPONSE_LANGUAGE = "繁體中文";
 
 /**
  * OpenAI Model 設定
@@ -26,4 +26,4 @@ export const RESPONSE_LANGUAGE = "English";
  * - "gpt-4-turbo" - GPT-4 Turbo
  * - 其他 OpenAI 支援的模型
  */
-export const OPENAI_MODEL = "gpt-4.1-nano";
+export const OPENAI_MODEL = "gpt-4.1-mini";

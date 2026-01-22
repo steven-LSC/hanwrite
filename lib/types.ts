@@ -59,6 +59,7 @@ export interface ParaphraseResult {
 export type ContextMenuStage =
   | "initial"
   | "expansion-hint"
+  | "expansion-hint-error" // 顯示錯誤階段
   | "paraphrase-result" // 顯示結果階段
   | "paraphrase-error"; // 顯示錯誤階段
 

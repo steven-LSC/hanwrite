@@ -785,6 +785,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       setMenuStage("expansion-hint");
       setIsLoadingHints(true);
       setSelectedHintIndex(null);
+      setSelectionError(null);
 
       // 保持反白效果
       if (editorRef.current) {
@@ -796,7 +797,20 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         const fetchedHints = await getExpansionHints(selectedText);
         setHints(fetchedHints);
       } catch (error) {
-        console.error("Failed to fetch expansion hints:", error);
+        // 處理 API 錯誤
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "無法取得擴展建議，請稍後再試";
+
+        // 只有非驗證錯誤才記錄到 console（驗證錯誤是預期的，不需要記錄）
+        const isValidationError = (error as any).isValidationError;
+        if (!isValidationError) {
+          console.error("Failed to fetch expansion hints:", error);
+        }
+
+        setSelectionError(errorMessage);
+        setMenuStage("expansion-hint-error");
       } finally {
         setIsLoadingHints(false);
       }
@@ -1065,6 +1079,10 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
                   />
                 ) : null}
               </>
+            )}
+
+            {menuStage === "expansion-hint-error" && selectionError && (
+              <SelectionErrorPanel message={selectionError} />
             )}
 
             {menuStage === "paraphrase-error" && selectionError && (
