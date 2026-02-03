@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { ExpansionHint } from "@/lib/types";
-import { getResponseLanguage, getOpenaiModel } from "@/lib/ai-config";
+import { getResponseLanguage, AI_CONFIGS } from "@/lib/ai-config";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const authCookie = request.cookies.get("auth-user");
     const cookieValue = authCookie?.value || "{}";
     const responseLanguage = getResponseLanguage(cookieValue);
-    const openaiModel = getOpenaiModel(cookieValue);
+    const config = AI_CONFIGS["expansion-hint"];
 
     // 基本輸入驗證
     if (!selectedText || typeof selectedText !== "string") {
@@ -63,61 +63,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 生成 Expansion Hint 的 system prompt
-    const systemPrompt = `你是一個韓文寫作助手，專門為學習者提供文章擴展建議。
-
-**任務：**
-根據使用者選取的韓文句子/段落，提供三個擴展建議，每個建議包含說明和一個韓文例句。
-
-**目標：**
-幫助學習者思考如何擴展文章內容，提供具體且實用的寫作方向。
-
-**輸出格式：**
-請以 JSON 物件格式回傳，結構如下：
-{
-  "hints": [
-    {
-      "explanation": "擴展建議說明（使用 ${responseLanguage}）",
-      "example": "韓文例句（必須是完整的句子，以句號結尾）"
-    }
-  ]
-}
-
-**重要規則：**
-1. 必須提供恰好三個擴展建議（hints 陣列必須包含三個元素）
-2. 每個建議的 explanation 必須使用 ${responseLanguage}
-3. 每個建議的 example 必須是完整的韓文句子，以句號結尾
-4. 擴展建議應該：
-   - 根據選取的句子/段落提供建議
-   - 提供具體的寫作方向（例如：反思、比較、延伸、情感表達等）
-   - 例句應該自然流暢，符合韓文寫作習慣
-5. 三個建議應該從不同角度出發，避免重複
-
-**格式範例：**
-輸入："(句子/段落)"
-輸出：
-{
-  "hints": [
-    {
-      "explanation": "${responseLanguage}的建議說明",
-      "example": "(韓文例句)"
-    },
-    {
-      "explanation": "${responseLanguage}的建議說明",
-      "example": "(韓文例句)"
-    },
-    {
-      "explanation": "${responseLanguage}的建議說明",
-      "example": "(韓文例句)"
-    }
-  ]
-}
-
-請確保回傳的是有效的 JSON 格式，不要包含任何額外的文字或說明。`;
+    // 使用配置檔的設定
+    const systemPrompt = config.systemPrompt(responseLanguage);
 
     // 呼叫 OpenAI API
     const completion = await openai.chat.completions.create({
-      model: openaiModel,
+      model: config.model,
       messages: [
         { role: "system", content: systemPrompt },
         {
@@ -126,7 +77,7 @@ export async function POST(request: NextRequest) {
         },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.7,
+      temperature: config.temperature,
     });
 
     const responseContent = completion.choices[0]?.message?.content;

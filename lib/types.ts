@@ -81,9 +81,32 @@ export interface ProficiencyReportItem {
 export type ProficiencyReport = ProficiencyReportItem[];
 
 // Error Detection & Correction 相關型別
+
+// API 回傳的中間型別（不包含 errorPosition）
+export interface GrammarErrorInput {
+  grammarName: string; // 文法名稱
+  grammarError: string; // 錯誤文字（原 originalError）
+  correctSentence: string; // 正確的句子
+  explanation: string; // 解釋
+  example: string; // 例句
+}
+
+export interface VocabErrorInput {
+  correctWord: string; // 正確單字的名稱
+  vocabError: string; // 錯誤文字（原 wrongWord）
+  translation: string; // 翻譯
+  partOfSpeech: string; // 詞性
+  example: string; // 例句
+  synonyms: string[]; // 同義詞（最多三個）
+  relatedWords?: string[]; // 相關詞（最多三個，名詞和動詞必需，形容詞和副詞可選）
+  antonyms?: string[]; // 反義詞（最多三個，僅形容詞和副詞）
+  imageSearchKeyword?: string; // 圖片搜尋關鍵字（僅名詞需要）
+}
+
+// 前端使用的型別（包含 errorPosition）
 export interface GrammarError {
   grammarName: string; // 文法名稱
-  originalError: string; // 原本的錯誤
+  grammarError: string; // 錯誤文字（原 originalError）
   errorPosition: { start: number; end: number }; // 錯誤位置
   correctSentence: string; // 正確的句子
   explanation: string; // 解釋
@@ -92,15 +115,15 @@ export interface GrammarError {
 
 export interface VocabError {
   correctWord: string; // 正確單字的名稱
-  wrongWord: string; // 錯誤的單字
+  vocabError: string; // 錯誤文字（原 wrongWord）
   errorPosition: { start: number; end: number }; // 錯誤位置
   translation: string; // 翻譯
   synonyms: string[]; // 同義詞
-  relatedWords: string[]; // 相關詞
-  antonyms: string[]; // 反義詞
+  relatedWords?: string[]; // 相關詞（名詞和動詞必需，形容詞和副詞可選）
+  antonyms?: string[]; // 反義詞（僅形容詞和副詞）
   partOfSpeech: string; // 詞性
   example: string; // 例句
-  searchKeyword?: string; // 搜尋圖片的英文關鍵字（僅用於名詞）
+  imageSearchKeyword?: string; // 圖片搜尋關鍵字（僅名詞需要）
 }
 
 export type ErrorDetectionResult = Array<

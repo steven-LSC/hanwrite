@@ -26,11 +26,16 @@ export interface EditorContentRef {
   getContent: () => string;
 }
 
+export interface EditorClickHandlerRef {
+  onEditorClick: () => void;
+}
+
 interface EditorContextType {
   selectedErrorIndex: number | null;
   setSelectedErrorIndex: (index: number | null) => void;
   editorHighlightRef: React.RefObject<EditorHighlightRef | null>;
   editorContentRef: React.RefObject<EditorContentRef | null>;
+  editorClickHandlerRef: React.RefObject<EditorClickHandlerRef | null>;
 }
 
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
@@ -41,10 +46,11 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   );
   const editorHighlightRef = useRef<EditorHighlightRef | null>(null);
   const editorContentRef = useRef<EditorContentRef | null>(null);
+  const editorClickHandlerRef = useRef<EditorClickHandlerRef | null>(null);
 
   return (
     <EditorContext.Provider
-      value={{ selectedErrorIndex, setSelectedErrorIndex, editorHighlightRef, editorContentRef }}
+      value={{ selectedErrorIndex, setSelectedErrorIndex, editorHighlightRef, editorContentRef, editorClickHandlerRef }}
     >
       {children}
     </EditorContext.Provider>

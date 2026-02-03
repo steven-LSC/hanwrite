@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { OutlineSection } from "@/lib/types";
-import { getResponseLanguage, getOpenaiModel } from "@/lib/ai-config";
+import { getResponseLanguage, AI_CONFIGS } from "@/lib/ai-config";
 import { convertNodesToTree, TreeNode } from "@/lib/mindmap-utils";
 
 const openai = new OpenAI({
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const authCookie = request.cookies.get("auth-user");
     const cookieValue = authCookie?.value || "{}";
     const responseLanguage = getResponseLanguage(cookieValue);
-    const openaiModel = getOpenaiModel(cookieValue);
+    const config = AI_CONFIGS["outline-generator"];
 
     // 驗證輸入參數
     if (!title || typeof title !== "string" || !title.trim()) {
@@ -67,68 +67,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // System prompt：固定指令，說明任務要求
-    const systemPrompt = `你是一個韓文寫作助手，專門根據心智圖生成文章大綱。
-
-**任務說明：**
-根據提供的心智圖（tree 結構），生成一篇韓文文章的大綱。大綱應該包含三個區塊：introduction（開頭）、body（主體）、conclusion（結尾）。
-
-**心智圖結構說明：**
-- 每個節點包含 id、label（節點文字）和 parentId（父節點 ID，null 表示根節點）
-- 根節點通常是文章的主題
-- 子節點是相關的概念或細節
-
-**回傳格式：**
-請以 JSON 物件格式回傳，包含一個 "sections" 鍵，值為區塊陣列。每個區塊必須包含以下欄位：
-
-1. **type**：區塊類型，必須是 "introduction"、"body" 或 "conclusion"
-2. **description**：描述性指引（使用 ${responseLanguage}），說明這個區塊應該往哪個方向寫，提供寫作建議
-3. **exampleSentence**：範例句子（韓文），必須是完整的韓文句子，且必須包含心智圖上的節點內容
-
-**語言設定：**
-- description 使用 ${responseLanguage}
-- exampleSentence 使用韓文
-
-**重要要求：**
-- exampleSentence 必須引用心智圖中的節點內容（節點的文字），不能憑空創造
-- exampleSentence 應該是一個完整、自然的韓文句子
-- description 應該提供具體的寫作方向指引，幫助使用者知道如何展開這個段落
-
-**範例：**
-假設心智圖是關於「부산 여행」（釜山旅行）的主題，且包含節點如「해운대」、「자갈치 시장」、「부모님」、「동생」等，應該回傳：
-
-{
-  "sections": [
-    {
-      "type": "introduction",
-      "description": "Describe who went on the trip, when it happened, and why you decided to go. Mention the people involved and the purpose of the trip.",
-      "exampleSentence": "나는 부모님과 동생과 함께 여름방학에 휴식을 위해 부산 여행을 떠났다."
-    },
-    {
-      "type": "body",
-      "description": "Describe what you did during the trip, what you saw, and how you felt. Include specific places visited and activities done.",
-      "exampleSentence": "해운대에서 산책을 하며 파도를 바라보니 마음이 편안해졌고, 자갈치 시장에서 신선한 해산물을 쇼핑하며 즐거운 시간을 보냈다."
-    },
-    {
-      "type": "conclusion",
-      "description": "Summarize what you learned or how the trip changed your feelings. Reflect on the experience and express your thoughts.",
-      "exampleSentence": "부산 여행을 통해 부모님과 동생과의 관계가 더욱 가까워졌음을 느꼈다."
-    }
-  ]
-}
-
-**重要提醒：**
-- 必須回傳三個區塊：introduction、body、conclusion
-- 每個區塊的 exampleSentence 必須包含心智圖中的節點內容
-- exampleSentence 必須是完整的韓文句子
-- 請確保回傳的是有效的 JSON 格式，不要包含任何額外的文字或說明。`;
+    // 使用配置檔的設定
+    const systemPrompt = config.systemPrompt(responseLanguage);
 
     // 將 tree 結構轉換成文字描述，方便 LLM 理解
     const treeDescription = buildTreeDescription(treeNodes, title);
 
     // 呼叫 OpenAI API
     const completion = await openai.chat.completions.create({
-      model: openaiModel,
+      model: config.model,
       messages: [
         { role: "system", content: systemPrompt },
         {
@@ -137,7 +84,7 @@ export async function POST(request: NextRequest) {
         },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.3,
+      temperature: config.temperature,
     });
 
     const responseContent = completion.choices[0]?.message?.content;

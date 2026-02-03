@@ -61,9 +61,10 @@ export async function PUT(
   }
 
   // 更新 outline 欄位
+  // 使用 JSON.parse/stringify 確保類型符合 Prisma 的 JSON 欄位要求
   const mindmap = await prisma.mindmap.update({
     where: { id: existing.id },
-    data: { outline },
+    data: { outline: JSON.parse(JSON.stringify(outline)) as any },
     select: {
       id: true,
       title: true,

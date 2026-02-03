@@ -14,6 +14,7 @@ import { ProficiencyReport, ErrorDetectionResult } from "@/lib/types";
 export interface AIAnalysisHandle {
   openReportModal: () => void;
   handleErrorDetectionAnalyze: () => Promise<void>;
+  isAnalyzing: boolean;
 }
 
 interface AIAnalysisProps {
@@ -27,9 +28,9 @@ interface AIAnalysisProps {
 type AIAnalysisSubFeature = "error-detection" | "proficiency-report";
 
 export const AIAnalysis = forwardRef<AIAnalysisHandle, AIAnalysisProps>(
-  ({ 
-    writingId, 
-    initialResults, 
+  ({
+    writingId,
+    initialResults,
     onResultsChange,
     errorDetectionInitialResults,
     onErrorDetectionResultsChange,
@@ -48,6 +49,9 @@ export const AIAnalysis = forwardRef<AIAnalysisHandle, AIAnalysisProps>(
         if (errorDetectionRef.current) {
           await errorDetectionRef.current.handleAnalyze();
         }
+      },
+      get isAnalyzing() {
+        return errorDetectionRef.current?.isAnalyzing || false;
       },
     }));
 

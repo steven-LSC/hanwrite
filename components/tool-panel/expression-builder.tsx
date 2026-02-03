@@ -1,11 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import { Button } from "../ui/button";
 import { Loading } from "../ui/loading";
 import { ErrorMessage } from "../ui/error-message";
 import { ExpressionBuilderResult } from "@/lib/types";
 import { getExpressionBuilderResults } from "@/lib/data/writings";
+
+export interface ExpressionBuilderHandle {
+  isAnalyzing: boolean;
+}
 
 interface ExpressionBuilderProps {
   writingId?: string;
@@ -15,13 +19,13 @@ interface ExpressionBuilderProps {
   onInputTextChange: (inputText: string) => void;
 }
 
-export function ExpressionBuilder({
+export const ExpressionBuilder = forwardRef<ExpressionBuilderHandle, ExpressionBuilderProps>(({
   writingId,
   initialResults,
   initialInputText = "",
   onResultsChange,
   onInputTextChange,
-}: ExpressionBuilderProps) {
+}, ref) => {
   const [inputText, setInputText] = useState(initialInputText);
   const [results, setResults] = useState<ExpressionBuilderResult[]>(
     initialResults || []
@@ -49,6 +53,11 @@ export function ExpressionBuilder({
       isMountedRef.current = false;
     };
   }, []);
+
+  // 暴露 isAnalyzing 給父元件
+  useImperativeHandle(ref, () => ({
+    isAnalyzing,
+  }));
 
   // 當輸入文字改變時，通知父元件
   const handleInputChange = (value: string) => {
@@ -109,6 +118,7 @@ export function ExpressionBuilder({
                 variant="primary"
                 icon="donut_large"
                 onClick={handleAnalyze}
+                disabled={isAnalyzing}
               >
                 Analyze
               </Button>
@@ -137,7 +147,9 @@ export function ExpressionBuilder({
       </div>
     </div>
   );
-}
+});
+
+ExpressionBuilder.displayName = "ExpressionBuilder";
 
 // 結果區塊元件
 function ResultBlock({ result }: { result: ExpressionBuilderResult }) {

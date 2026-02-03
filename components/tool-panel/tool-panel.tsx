@@ -8,7 +8,7 @@ import React, {
   forwardRef,
 } from "react";
 import { useParams } from "next/navigation";
-import { ExpressionBuilder } from "./expression-builder";
+import { ExpressionBuilder, ExpressionBuilderHandle } from "./expression-builder";
 import { ReferencePanel, ReferencePanelHandle } from "./reference-panel";
 import { AIAnalysis, AIAnalysisHandle } from "./ai-analysis";
 import { ReverseOutlining, ReverseOutliningHandle } from "./reverse-outlining";
@@ -73,6 +73,8 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
   const referencePanelRef = useRef<ReferencePanelHandle>(null);
   // AI Analysis 的 ref
   const aiAnalysisRef = useRef<AIAnalysisHandle>(null);
+  // Expression Builder 的 ref
+  const expressionBuilderRef = useRef<ExpressionBuilderHandle>(null);
 
   // 暴露方法給父元件
   useImperativeHandle(ref, () => ({
@@ -184,6 +186,31 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
 
   const config = getToolConfig(currentTool);
 
+  // 追蹤 loading 狀態
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 監聽當前工具的 loading 狀態變化
+  useEffect(() => {
+    const checkLoading = () => {
+      let loading = false;
+      if (currentTool === "reverse-outlining") {
+        loading = reverseOutliningRef.current?.isAnalyzing || false;
+      } else if (currentTool === "ai-analysis") {
+        loading = aiAnalysisRef.current?.isAnalyzing || false;
+      } else if (currentTool === "expression-builder") {
+        loading = expressionBuilderRef.current?.isAnalyzing || false;
+      }
+      setIsLoading(loading);
+    };
+
+    // 初始檢查
+    checkLoading();
+
+    // 定期檢查 loading 狀態（因為 ref 變化不會觸發重新渲染）
+    const interval = setInterval(checkLoading, 100);
+    return () => clearInterval(interval);
+  }, [currentTool]);
+
   // 點擊外部關閉 dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -224,6 +251,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
       case "expression-builder":
         return (
           <ExpressionBuilder
+            ref={expressionBuilderRef}
             writingId={currentWritingIdValue}
             initialResults={toolState["expression-builder"]?.results || null}
             initialInputText={toolState["expression-builder"]?.inputText || ""}
@@ -492,6 +520,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
                     }
                   }
                 }}
+                disabled={isLoading}
               >
                 {config.rightButton.label}
               </Button>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { ReverseOutliningResult } from "@/lib/types";
-import { getResponseLanguage, getOpenaiModel } from "@/lib/ai-config";
+import { getResponseLanguage, AI_CONFIGS } from "@/lib/ai-config";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const authCookie = request.cookies.get("auth-user");
     const cookieValue = authCookie?.value || "{}";
     const responseLanguage = getResponseLanguage(cookieValue);
-    const openaiModel = getOpenaiModel(cookieValue);
+    const config = AI_CONFIGS["reverse-outlining"];
 
     // 驗證輸入：確保 paragraphs 存在且是陣列
     if (!paragraphs || !Array.isArray(paragraphs)) {
@@ -62,51 +62,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // System prompt：使用繁體中文，說明任務和格式要求
-    const systemPrompt = `你是一個韓文寫作分析助手，專門為文章段落生成反向大綱（reverse outline）。
-
-**任務：**
-為每個給定的韓文段落生成一個大綱和兩個解釋原因。
-
-**輸出格式：**
-請以 JSON 物件格式回傳，結構如下：
-{
-  "results": [
-    {
-      "outline": "段落大綱（必須是一句話）",
-      "reasons": [
-        "第一個原因：描述原本段落說了什麼（使用 ${responseLanguage}）",
-        "第二個原因：說明為什麼決定這樣濃縮（使用 ${responseLanguage}）"
-      ]
-    }
-  ]
-}
-
-**重要規則：**
-1. **outline 必須是一句話**：每個段落的大綱必須濃縮成單一句話
-2. **reasons 固定兩個元素**：
-   - reasons[0]：描述原本段落的主要內容和細節（使用 ${responseLanguage}）
-   - reasons[1]：說明為什麼決定這樣濃縮，解釋濃縮的邏輯和重點（使用 ${responseLanguage}）
-3. 所有解釋文字必須使用 ${responseLanguage}
-4. results 陣列的長度必須與輸入的段落數量相同
-5. 每個段落對應一個結果物件
-
-**格式範例（不包含實際內容）：**
-輸入：段落陣列
-輸出：
-{
-  "results": [
-    {
-      "outline": "(一句話的大綱)",
-      "reasons": [
-        "(描述原本段落說了什麼)",
-        "(說明為什麼決定這樣濃縮)"
-      ]
-    }
-  ]
-}
-
-請確保回傳的是有效的 JSON 格式，不要包含任何額外的文字或說明。`;
+    // 使用配置檔的設定
+    const systemPrompt = config.systemPrompt(responseLanguage);
 
     // 構建 user message：將段落陣列格式化
     const paragraphsText = paragraphs
@@ -115,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     // 呼叫 OpenAI API
     const completion = await openai.chat.completions.create({
-      model: openaiModel,
+      model: config.model,
       messages: [
         { role: "system", content: systemPrompt },
         {
@@ -124,7 +81,7 @@ export async function POST(request: NextRequest) {
         },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.3,
+      temperature: config.temperature,
     });
 
     const responseContent = completion.choices[0]?.message?.content;

@@ -23,14 +23,11 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { responseLanguage, openaiModel } = body
+    const { responseLanguage } = body
 
-    const settings: { responseLanguage?: string; openaiModel?: string } = {}
+    const settings: { responseLanguage?: string } = {}
     if (responseLanguage) {
       settings.responseLanguage = responseLanguage
-    }
-    if (openaiModel) {
-      settings.openaiModel = openaiModel
     }
 
     const updatedSettings = await updateUserSettings(userId, settings)

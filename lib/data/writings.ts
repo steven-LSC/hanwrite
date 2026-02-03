@@ -6,6 +6,8 @@ import {
   ProficiencyReport,
   ErrorDetectionResult,
   ToolState,
+  GrammarErrorInput,
+  VocabErrorInput,
 } from "../types";
 
 // 假資料：文章內容
@@ -272,89 +274,56 @@ export async function getReverseOutliningResults(
 
 /**
  * 取得 Proficiency Report 分析結果（薄抽象層）
- * 未來會改成真正的 AI API 呼叫
+ * 呼叫 AI API 分析韓語寫作文本並回傳結構化結果
  */
 export async function getProficiencyReport(
-  writingId: string
+  title: string,
+  content: string
 ): Promise<ProficiencyReport> {
-  // 模擬 API 延遲
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  const response = await fetch("/api/proficiency-report", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ title, content }),
+  });
 
-  // 假資料：根據 Figma 設計的內容
-  const mockReport: ProficiencyReport = [
-    {
-      category: "Content & Task Achievement",
-      level: 5,
-      description:
-        "The content is complete and clearly conveys the travel experience with a coherent theme. However, some parts remain rather general. To reach the next level, try adding more vivid and specific descriptions to enhance realism.",
-    },
-    {
-      category: "Organization & Coherence",
-      level: 5,
-      description:
-        "The paragraph organization is clear and the overall flow is smooth. Yet, transition markers are still limited. Incorporating more discourse connectors can make the narrative more structured and cohesive.",
-    },
-    {
-      category: "Language Use",
-      level: 4,
-      description:
-        "Vocabulary and grammar are generally accurate and natural, showing fluent control of expression. However, sentence patterns remain repetitive. To improve, try using complex or varied sentence structures to enrich your writing style.",
-    },
-    {
-      category: "Sociolinguistic Appropriateness",
-      level: 3,
-      description:
-        "The tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contexts. The tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contexts The tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contextsThe tone is natural and appropriate for a personal narrative. Nonetheless, some expressions sound slightly conversational. Paying more attention to polite or formal sentence endings will make the text more suitable for academic writing contexts",
-    },
-  ];
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.error || `Failed to generate proficiency report: ${response.statusText}`
+    );
+  }
 
-  return mockReport;
+  const data = await response.json();
+  return data.results || [];
 }
 
 /**
  * 取得 Error Detection & Correction 分析結果（薄抽象層）
- * 未來會改成真正的 AI API 呼叫
+ * 呼叫 AI API 分析韓語寫作文本並回傳結構化結果（不包含 errorPosition）
  */
 export async function getErrorDetectionResults(
-  writingId: string
-): Promise<ErrorDetectionResult> {
-  // 模擬 API 延遲
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  // 取得文章內容
-  const writing = await getWriting(writingId);
-
-  // 假資料：根據 Figma 設計的內容
-  const mockResults: ErrorDetectionResult = [
-    {
-      type: "grammar",
-      data: {
-        grammarName: "Noun + (으)로",
-        originalError: "사진로",
-        errorPosition: { start: 228, end: 231 }, // "그 순간을 사진로 남겼다" 中的 "사진로"
-        correctSentence: "사진으로",
-        explanation: "Indicates means or material used for an action.",
-        example: "사잇길로 가면 해운대에 금방 도착한다.",
-      },
+  content: string
+): Promise<Array<{ type: "grammar"; data: GrammarErrorInput } | { type: "vocab"; data: VocabErrorInput }>> {
+  const response = await fetch("/api/error-detection", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-    {
-      type: "vocab",
-      data: {
-        correctWord: "해산물",
-        wrongWord: "해사물",
-        errorPosition: { start: 335, end: 338 }, // "다양한 해사물 가게들이" 中的 "해사물"
-        translation: "seafood eaten as food",
-        synonyms: ["수산물 (marine product)"],
-        relatedWords: ["생선 (fish)", "조개 (clam)", "식당 (restaurant)"],
-        antonyms: [],
-        partOfSpeech: "noun",
-        example: "부산에 가면 신선한 해산물을 꼭 먹어야 한다.",
-        searchKeyword: "seafood",
-      },
-    },
-  ];
+    body: JSON.stringify({ content }),
+  });
 
-  return mockResults;
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.error || `Failed to detect errors: ${response.statusText}`
+    );
+  }
+
+  const data = await response.json();
+  // API 回傳的是不包含 errorPosition 的結果，前端需要計算位置
+  return data.results || [];
 }
 
 /**

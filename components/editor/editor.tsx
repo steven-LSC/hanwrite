@@ -24,7 +24,7 @@ import {
   ParaphraseResult,
 } from "@/lib/types";
 import { useFocus } from "@/app/(main)/focus-context";
-import { useEditor, EditorHighlightRef, EditorContentRef, ErrorPosition } from "@/app/(main)/editor-context";
+import { useEditor, EditorHighlightRef, EditorContentRef, ErrorPosition, EditorClickHandlerRef } from "@/app/(main)/editor-context";
 
 interface EditorProps {
   initialTitle?: string;
@@ -52,7 +52,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     ref
   ) => {
     const { isFocusMode, toggleFocus } = useFocus();
-    const { editorHighlightRef, editorContentRef } = useEditor();
+    const { editorHighlightRef, editorContentRef, editorClickHandlerRef } = useEditor();
     const [title, setTitle] = useState(initialTitle);
     const [content, setContent] = useState(initialContent);
     const [isSaving, setIsSaving] = useState(false);
@@ -643,6 +643,14 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         const range = getSelectionRange(editor);
         if (!range) {
           setShowContextMenu(false);
+          // 當沒有選取文字時，清除 highlight（保留錯誤卡片）
+          if (editorHighlightRef.current) {
+            editorHighlightRef.current.clearHighlight();
+          }
+          // 通知 error-detection-correction 組件關閉 showAll
+          if (editorClickHandlerRef.current) {
+            editorClickHandlerRef.current.onEditorClick();
+          }
           return;
         }
 
@@ -668,6 +676,14 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
           setSelectionRange(editor, start, end);
         } else {
           setShowContextMenu(false);
+          // 當沒有選取文字時，清除 highlight（保留錯誤卡片）
+          if (editorHighlightRef.current) {
+            editorHighlightRef.current.clearHighlight();
+          }
+          // 通知 error-detection-correction 組件關閉 showAll
+          if (editorClickHandlerRef.current) {
+            editorClickHandlerRef.current.onEditorClick();
+          }
         }
       }, 10);
     };

@@ -10,7 +10,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { ProficiencyReport } from "@/lib/types";
-import { getProficiencyReport } from "@/lib/data/writings";
+import { getProficiencyReport, getWriting } from "@/lib/data/writings";
 
 export interface ProficiencyReportHandle {
   openModal: () => void;
@@ -53,7 +53,11 @@ export const ProficiencyReportComponent = forwardRef<
 
     setIsGenerating(true);
     try {
-      const reportData = await getProficiencyReport(writingId);
+      // 先取得文章內容
+      const writing = await getWriting(writingId);
+
+      // 將文章標題和內容傳遞給 getProficiencyReport
+      const reportData = await getProficiencyReport(writing.title, writing.content);
       setReport(reportData);
       onResultsChange(reportData);
     } catch (error) {

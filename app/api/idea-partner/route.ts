@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { getResponseLanguage, getOpenaiModel } from "@/lib/ai-config";
+import { getResponseLanguage, AI_CONFIGS } from "@/lib/ai-config";
 import { convertNodesToTree, TreeNode } from "@/lib/mindmap-utils";
 
 const openai = new OpenAI({
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     const authCookie = request.cookies.get("auth-user");
     const cookieValue = authCookie?.value || "{}";
     const responseLanguage = getResponseLanguage(cookieValue);
-    const openaiModel = getOpenaiModel(cookieValue);
+    const config = AI_CONFIGS["idea-partner"];
 
     // 驗證輸入參數
     if (!nodes || !Array.isArray(nodes)) {
@@ -62,77 +62,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // System prompt：固定指令，說明任務要求
-    const systemPrompt = `你是一個韓文寫作助手，專門分析心智圖節點，找出可以進一步展開的節點並產生引導問題。
-
-**任務說明：**
-根據提供的心智圖（tree 結構），分析哪些節點還有可以繼續說得更詳細的可能性，並為每個選中的節點產生一個引導問題（prompt）。
-
-**判斷標準：**
-- 節點還有可以繼續說得更詳細的可能性
-- 例如：如果節點是「購物」，可以問「你當初買了什麼？」
-- 例如：如果節點是「사진 찍기」（拍照），可以問「Try describing what appeared in the photo you took.」
-- 例如：如果節點是「산책」（散步），可以問「Describe a memorable walk you had during your Busan trip.」
-- 例如：如果節點是「자갈치 시장」（札嘎其市場），可以問「What was the most interesting thing you saw at Jagalchi Market?」
-- 節點位置不限（可以是任何層級：根節點、子節點、孫節點等）
-- 優先選擇那些概念較為抽象或可以進一步具體化的節點
-
-**回傳格式：**
-請以 JSON 物件格式回傳，包含一個 "cards" 鍵，值為卡片陣列。每個卡片必須包含以下欄位：
-
-1. **nodeId**：節點的 ID（字串）
-2. **title**：節點的標籤文字（韓文，與心智圖中的 label 相同）
-3. **description**：引導問題（使用 ${responseLanguage}），幫助使用者進一步展開這個節點
-
-**數量要求：**
-- 必須至少回傳 3 個卡片
-- 最多數量不限，可以根據心智圖的複雜度選擇更多節點
-
-**語言設定：**
-- title 使用韓文（與心智圖中的節點 label 相同）
-- description 使用 ${responseLanguage}
-
-**重要要求：**
-- description 應該是一個具體的引導問題，幫助使用者思考如何進一步展開這個節點
-- description 應該鼓勵使用者提供更多細節、具體的例子或相關的經驗
-- 選擇的節點應該是有潛力可以進一步展開的，避免選擇已經非常具體或完整的節點
-
-**範例：**
-假設心智圖是關於「부산 여행」（釜山旅行）的主題，且包含節點如「해운대」、「자갈치 시장」、「부모님」、「동생」、「사진 찍기」、「산책」等，應該回傳：
-
-{
-  "cards": [
-    {
-      "nodeId": "node-1",
-      "title": "사진 찍기",
-      "description": "Try describing what appeared in the photo you took. What was the subject of the photo? What made you want to capture that moment?"
-    },
-    {
-      "nodeId": "node-2",
-      "title": "산책",
-      "description": "Describe a memorable walk you had during your Busan trip. Where did you walk? What did you see or feel during the walk?"
-    },
-    {
-      "nodeId": "node-3",
-      "title": "자갈치 시장",
-      "description": "What was the most interesting thing you saw at Jagalchi Market? Describe the atmosphere, the people, or any memorable interactions you had there."
-    }
-  ]
-}
-
-**重要提醒：**
-- 必須回傳至少 3 個卡片
-- 每個 card 的 nodeId 必須對應到心智圖中實際存在的節點 ID
-- title 必須與心智圖中對應節點的 label 完全相同
-- description 必須使用 ${responseLanguage}，且應該是一個具體、有幫助的引導問題
-- 請確保回傳的是有效的 JSON 格式，不要包含任何額外的文字或說明。`;
+    // 使用配置檔的設定
+    const systemPrompt = config.systemPrompt(responseLanguage);
 
     // 將 tree 結構轉換成文字描述，方便 LLM 理解
     const treeDescription = buildTreeDescription(treeNodes, title || "");
 
     // 呼叫 OpenAI API
     const completion = await openai.chat.completions.create({
-      model: openaiModel,
+      model: config.model,
       messages: [
         { role: "system", content: systemPrompt },
         {
@@ -141,7 +79,7 @@ export async function POST(request: NextRequest) {
         },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.3,
+      temperature: config.temperature,
     });
 
     const responseContent = completion.choices[0]?.message?.content;

@@ -8,15 +8,16 @@ import React, {
   useRef,
 } from "react";
 import Image from "next/image";
-import { getWriting, getErrorDetectionResults } from "@/lib/data/writings";
-import { ErrorDetectionResult } from "@/lib/types";
+import { getErrorDetectionResults } from "@/lib/data/writings";
+import { ErrorDetectionResult, GrammarErrorInput, VocabErrorInput } from "@/lib/types";
 import { Loading } from "@/components/ui/loading";
 import { Button } from "@/components/ui/button";
-import { useEditor, ErrorPosition } from "@/app/(main)/editor-context";
+import { useEditor, ErrorPosition, EditorClickHandlerRef } from "@/app/(main)/editor-context";
 import { GrammarPracticeModal } from "./grammar-practice-modal";
 
 export interface ErrorDetectionCorrectionHandle {
   handleAnalyze: () => Promise<void>;
+  isAnalyzing: boolean;
 }
 
 interface ErrorDetectionCorrectionProps {
@@ -29,7 +30,7 @@ export const ErrorDetectionCorrection = forwardRef<
   ErrorDetectionCorrectionHandle,
   ErrorDetectionCorrectionProps
 >(({ writingId, initialResults, onResultsChange }, ref) => {
-  const { selectedErrorIndex, setSelectedErrorIndex, editorHighlightRef } = useEditor();
+  const { selectedErrorIndex, setSelectedErrorIndex, editorHighlightRef, editorContentRef, editorClickHandlerRef } = useEditor();
   const [results, setResults] = useState<ErrorDetectionResult | null>(
     initialResults
   );
@@ -38,10 +39,121 @@ export const ErrorDetectionCorrection = forwardRef<
   const [imageUrls, setImageUrls] = useState<Map<number, string>>(new Map());
   const [loadingImages, setLoadingImages] = useState<Set<number>>(new Set());
   const loadedImageKeysRef = useRef<Set<string>>(new Set());
+  const previousResultsContentRef = useRef<string>("");
   const [isPracticeModalOpen, setIsPracticeModalOpen] = useState(false);
   const [selectedGrammarIndex, setSelectedGrammarIndex] = useState<number | null>(null);
   const [skippedErrors, setSkippedErrors] = useState<Set<number>>(new Set());
   const previousResultsLengthRef = useRef<number>(0);
+
+  // 計算錯誤位置（反向尋找策略：從前面開始搜尋，按照錯誤 list 順序依序匹配）
+  // 如果找不到錯誤，會過濾掉該錯誤
+  const calculateErrorPositions = (
+    errors: Array<{ type: "grammar"; data: GrammarErrorInput } | { type: "vocab"; data: VocabErrorInput }>,
+    content: string
+  ): ErrorDetectionResult => {
+    let searchStartIndex = 0;
+
+    return errors
+      .map((error) => {
+        let errorText: string;
+        if (error.type === "grammar") {
+          errorText = error.data.grammarError?.trim() || '';
+        } else {
+          errorText = error.data.vocabError?.trim() || '';
+        }
+
+        if (!errorText) {
+          console.warn(`[Error Detection] 錯誤文字為空，過濾掉`);
+          return null;
+        }
+
+        // 從 searchStartIndex 開始搜尋錯誤文字
+        // 先嘗試直接匹配
+        let index = content.indexOf(errorText, searchStartIndex);
+
+        // 如果找不到，嘗試標準化後匹配（移除多餘空格）
+        if (index === -1) {
+          const normalizedContent = content.replace(/\s+/g, ' ');
+          const normalizedErrorText = errorText.replace(/\s+/g, ' ');
+          const normalizedIndex = normalizedContent.indexOf(normalizedErrorText, searchStartIndex);
+
+          if (normalizedIndex !== -1) {
+            // 找到標準化後的位置，需要轉換回原始位置
+            // 計算標準化前的位置
+            let charCount = 0;
+            let normalizedCharCount = 0;
+            for (let i = 0; i < content.length; i++) {
+              if (normalizedCharCount === normalizedIndex) {
+                index = charCount;
+                break;
+              }
+              if (content[i].match(/\s/)) {
+                // 如果是空格，只在標準化字串中計數一次
+                if (normalizedCharCount === 0 || normalizedContent[normalizedCharCount - 1] !== ' ') {
+                  normalizedCharCount++;
+                }
+              } else {
+                normalizedCharCount++;
+              }
+              charCount++;
+            }
+            // 如果還是找不到，使用標準化索引作為近似值
+            if (index === -1) {
+              index = normalizedIndex;
+            }
+          }
+        }
+
+        if (index === -1) {
+          // 如果找不到，過濾掉這個錯誤
+          console.warn(`[Error Detection] 找不到錯誤文字: ${errorText}，過濾掉`);
+          return null;
+        }
+
+        // 找到錯誤位置
+        const errorPosition = {
+          start: index,
+          end: index + errorText.length,
+        };
+
+        // 更新 searchStartIndex，從這個錯誤之後繼續搜尋下一個錯誤
+        searchStartIndex = errorPosition.end;
+
+        // 建立包含位置的錯誤物件
+        if (error.type === "grammar") {
+          return {
+            type: "grammar" as const,
+            data: {
+              ...error.data,
+              errorPosition,
+            },
+          };
+        } else {
+          return {
+            type: "vocab" as const,
+            data: {
+              ...error.data,
+              errorPosition,
+            },
+          };
+        }
+      })
+      .filter((error): error is NonNullable<typeof error> => error !== null);
+  };
+
+  // 註冊編輯器點擊處理器
+  useImperativeHandle(editorClickHandlerRef, () => ({
+    onEditorClick: () => {
+      // 關閉 showAll
+      setShowAll(false);
+      // 清除選中的錯誤
+      setSelectedErrorIndex(null);
+      // 清除 highlight（已經在編輯器中處理了，這裡確保清除）
+      if (editorHighlightRef.current) {
+        editorHighlightRef.current.clearHighlight();
+      }
+    },
+  }), [setSelectedErrorIndex, editorHighlightRef, setShowAll]);
 
   // 當組件卸載時，清除 highlight
   useEffect(() => {
@@ -59,12 +171,12 @@ export const ErrorDetectionCorrection = forwardRef<
     // 檢查是否是新的分析（results 長度增加或從 null 變為有值）
     const currentLength = initialResults?.length || 0;
     const isNewAnalysis = currentLength > previousResultsLengthRef.current || previousResultsLengthRef.current === 0;
-    
+
     setResults(initialResults);
-    
+
     // 更新前一次的長度
     previousResultsLengthRef.current = currentLength;
-    
+
     // 只有在新的分析時才打開 showAll，Apply 後的更新不應該打開
     if (initialResults && isNewAnalysis) {
       setShowAll(true);
@@ -77,6 +189,7 @@ export const ErrorDetectionCorrection = forwardRef<
       setImageUrls(new Map());
       setLoadingImages(new Set());
       loadedImageKeysRef.current.clear();
+      previousResultsContentRef.current = "";
       // 清除 skipped 狀態
       setSkippedErrors(new Set());
     } else if (initialResults) {
@@ -86,23 +199,46 @@ export const ErrorDetectionCorrection = forwardRef<
     }
   }, [writingId, initialResults, setSelectedErrorIndex, editorHighlightRef]);
 
-  // 當 results 改變時，載入符合條件的圖片
+  // 當 results 改變時，載入符合條件的圖片（有 imageSearchKeyword 的單字）
   useEffect(() => {
     if (!results) return;
 
-    // 先清除所有圖片狀態，避免舊圖片殘留
+    // 建立結果內容的簽名（不包含位置資訊），用於判斷是否需要重新載入圖片
+    const resultsContent = JSON.stringify(
+      results.map((error) => {
+        if (error.type === "vocab") {
+          return {
+            type: "vocab",
+            vocabError: error.data.vocabError,
+            correctWord: error.data.correctWord,
+            partOfSpeech: error.data.partOfSpeech,
+            imageSearchKeyword: error.data.imageSearchKeyword,
+          };
+        }
+        return null;
+      }).filter(Boolean)
+    );
+
+    // 如果結果內容沒有改變（只是位置更新），不重新載入圖片
+    if (resultsContent === previousResultsContentRef.current) {
+      return;
+    }
+
+    // 更新內容簽名
+    previousResultsContentRef.current = resultsContent;
+
+    // 清除舊的圖片狀態（只在內容真正改變時）
     setImageUrls(new Map());
     setLoadingImages(new Set());
     loadedImageKeysRef.current.clear();
 
-    // 為每個符合條件的錯誤載入圖片
+    // 為每個有 imageSearchKeyword 的單字錯誤載入圖片
     results.forEach((error, index) => {
       if (
         error.type === "vocab" &&
-        error.data.partOfSpeech === "noun" &&
-        error.data.searchKeyword
+        error.data.imageSearchKeyword
       ) {
-        const searchKeyword = error.data.searchKeyword;
+        const searchKeyword = error.data.imageSearchKeyword;
         const imageKey = `${index}-${searchKeyword}`;
 
         // 標記為已載入（避免重複載入）
@@ -154,41 +290,114 @@ export const ErrorDetectionCorrection = forwardRef<
     if (!results || !editorHighlightRef.current) return;
 
     if (showAll) {
-      // Show All 打開時，highlight 所有錯誤
-      const errors: ErrorPosition[] = results.map((error) => {
-        if (error.type === "grammar") {
-          return {
-            position: error.data.errorPosition,
-            errorType: "grammar",
-          };
+      // Show All 打開時，重新計算錯誤位置並 highlight 所有錯誤
+      if (editorContentRef.current) {
+        const content = editorContentRef.current.getContent();
+        const errorsWithoutPosition = results.map((error) => {
+          if (error.type === "grammar") {
+            return {
+              type: "grammar" as const,
+              data: {
+                grammarName: error.data.grammarName,
+                grammarError: error.data.grammarError,
+                correctSentence: error.data.correctSentence,
+                explanation: error.data.explanation,
+                example: error.data.example,
+              },
+            };
+          } else {
+            return {
+              type: "vocab" as const,
+              data: {
+                correctWord: error.data.correctWord,
+                vocabError: error.data.vocabError,
+                translation: error.data.translation,
+                partOfSpeech: error.data.partOfSpeech,
+                example: error.data.example,
+                synonyms: error.data.synonyms,
+                relatedWords: error.data.relatedWords,
+                antonyms: error.data.antonyms,
+                imageSearchKeyword: error.data.imageSearchKeyword,
+              },
+            };
+          }
+        });
+        const updatedResults = calculateErrorPositions(errorsWithoutPosition, content);
+
+        // 如果結果改變了（有錯誤被過濾掉），更新狀態
+        if (updatedResults.length !== results.length) {
+          setResults(updatedResults);
+          onResultsChange(updatedResults);
+          // 如果當前選中的錯誤被過濾掉了，清除選中狀態
+          if (selectedErrorIndex !== null && selectedErrorIndex >= updatedResults.length) {
+            setSelectedErrorIndex(null);
+          }
+          // 使用更新後的結果進行 highlight
+          const errors: ErrorPosition[] = updatedResults.map((error) => {
+            if (error.type === "grammar") {
+              return {
+                position: error.data.errorPosition,
+                errorType: "grammar",
+              };
+            } else {
+              return {
+                position: error.data.errorPosition,
+                errorType: "vocab",
+              };
+            }
+          });
+          editorHighlightRef.current.highlightAllErrors(errors);
         } else {
-          return {
-            position: error.data.errorPosition,
-            errorType: "vocab",
-          };
+          // 結果沒變，直接 highlight
+          const errors: ErrorPosition[] = results.map((error) => {
+            if (error.type === "grammar") {
+              return {
+                position: error.data.errorPosition,
+                errorType: "grammar",
+              };
+            } else {
+              return {
+                position: error.data.errorPosition,
+                errorType: "vocab",
+              };
+            }
+          });
+          editorHighlightRef.current.highlightAllErrors(errors);
         }
-      });
-      editorHighlightRef.current.highlightAllErrors(errors);
+      }
     } else {
       // Show All 關閉時，如果沒有選中的錯誤，清除 highlight
       if (selectedErrorIndex === null) {
         editorHighlightRef.current.clearHighlight();
       }
     }
-  }, [showAll, results, selectedErrorIndex, editorHighlightRef]);
+  }, [showAll, results, selectedErrorIndex, editorHighlightRef, editorContentRef, onResultsChange, setSelectedErrorIndex]);
 
   const handleAnalyze = async () => {
-    if (!writingId || writingId === "new") {
-      return;
+    // 清除編輯器上的 highlight
+    if (editorHighlightRef.current) {
+      editorHighlightRef.current.clearHighlight();
     }
+    // 清除選中的錯誤
+    setSelectedErrorIndex(null);
 
     setIsAnalyzing(true);
     try {
-      // 取得文章內容
-      const writing = await getWriting(writingId);
+      // 從編輯器取得內容
+      if (!editorContentRef.current) {
+        throw new Error("Editor content ref not available");
+      }
+      const content = editorContentRef.current.getContent();
 
-      // 取得分析結果
-      const analysisResults = await getErrorDetectionResults(writingId);
+      if (!content || !content.trim()) {
+        throw new Error("Content is empty");
+      }
+
+      // 取得分析結果（不包含位置）
+      const analysisResultsWithoutPosition = await getErrorDetectionResults(content);
+
+      // 計算錯誤位置
+      const analysisResults = calculateErrorPositions(analysisResultsWithoutPosition, content);
 
       setResults(analysisResults);
       // 通知父元件更新狀態
@@ -202,9 +411,10 @@ export const ErrorDetectionCorrection = forwardRef<
     }
   };
 
-  // 暴露 handleAnalyze 給父元件
+  // 暴露 handleAnalyze 和 isAnalyzing 給父元件
   useImperativeHandle(ref, () => ({
     handleAnalyze,
+    isAnalyzing,
   }));
 
   // 載入中狀態
@@ -223,22 +433,106 @@ export const ErrorDetectionCorrection = forwardRef<
     );
   }
 
+  // 沒有錯誤時顯示訊息
+  if (results.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-[14px] text-(--color-text-tertiary)">
+          No error detected.
+        </p>
+      </div>
+    );
+  }
+
   // 處理卡片點擊
   const handleCardClick = (index: number, errorType: "grammar" | "vocab", position: { start: number; end: number }) => {
     // 關閉 Show All
     setShowAll(false);
 
-    // 如果點擊的是已經選中的錯誤，則取消選中
-    if (selectedErrorIndex === index) {
-      setSelectedErrorIndex(null);
-      if (editorHighlightRef.current) {
-        editorHighlightRef.current.clearHighlight();
+    // 重新計算所有錯誤的位置（因為文章內容可能已改變）
+    if (results && editorContentRef.current) {
+      const content = editorContentRef.current.getContent();
+      const errorsWithoutPosition = results.map((error) => {
+        if (error.type === "grammar") {
+          return {
+            type: "grammar" as const,
+            data: {
+              grammarName: error.data.grammarName,
+              grammarError: error.data.grammarError,
+              correctSentence: error.data.correctSentence,
+              explanation: error.data.explanation,
+              example: error.data.example,
+            },
+          };
+        } else {
+          return {
+            type: "vocab" as const,
+            data: {
+              correctWord: error.data.correctWord,
+              vocabError: error.data.vocabError,
+              translation: error.data.translation,
+              partOfSpeech: error.data.partOfSpeech,
+              example: error.data.example,
+              synonyms: error.data.synonyms,
+              relatedWords: error.data.relatedWords,
+              antonyms: error.data.antonyms,
+              imageSearchKeyword: error.data.imageSearchKeyword,
+            },
+          };
+        }
+      });
+      const updatedResults = calculateErrorPositions(errorsWithoutPosition, content);
+
+      // 如果更新後的結果數量改變了（有錯誤被過濾掉），需要調整索引
+      if (updatedResults.length !== results.length) {
+        // 如果當前選中的錯誤被過濾掉了，清除選中狀態
+        if (index >= updatedResults.length) {
+          setSelectedErrorIndex(null);
+          if (editorHighlightRef.current) {
+            editorHighlightRef.current.clearHighlight();
+          }
+        } else {
+          // 調整索引（如果被過濾的錯誤在當前選中錯誤之前，索引需要調整）
+          const newIndex = Math.min(index, updatedResults.length - 1);
+          setSelectedErrorIndex(newIndex);
+          const updatedPosition = updatedResults[newIndex]?.data.errorPosition;
+          if (updatedPosition && editorHighlightRef.current) {
+            editorHighlightRef.current.highlightError(updatedPosition, errorType);
+          }
+        }
+      } else {
+        // 結果數量沒變，使用原來的索引
+        const updatedPosition = updatedResults[index]?.data.errorPosition || position;
+
+        // 如果點擊的是已經選中的錯誤，則取消選中
+        if (selectedErrorIndex === index) {
+          setSelectedErrorIndex(null);
+          if (editorHighlightRef.current) {
+            editorHighlightRef.current.clearHighlight();
+          }
+        } else {
+          // 選中新的錯誤
+          setSelectedErrorIndex(index);
+          if (editorHighlightRef.current) {
+            editorHighlightRef.current.highlightError(updatedPosition, errorType);
+          }
+        }
       }
+
+      setResults(updatedResults);
+      onResultsChange(updatedResults);
     } else {
-      // 選中新的錯誤
-      setSelectedErrorIndex(index);
-      if (editorHighlightRef.current) {
-        editorHighlightRef.current.highlightError(position, errorType);
+      // 如果沒有 results，使用原始 position
+      if (selectedErrorIndex === index) {
+        setSelectedErrorIndex(null);
+        if (editorHighlightRef.current) {
+          editorHighlightRef.current.clearHighlight();
+        }
+      } else {
+        setSelectedErrorIndex(index);
+        if (editorHighlightRef.current) {
+          editorHighlightRef.current.highlightError(position, errorType);
+        }
       }
     }
   };
@@ -530,7 +824,7 @@ export const ErrorDetectionCorrection = forwardRef<
                 {/* 錯誤 → 正確 */}
                 <div className="bg-(--color-bg-secondary) rounded-[5px] px-[10px] py-[5px] flex items-center gap-[10px]">
                   <span className="text-[14px] font-medium text-red-500">
-                    {grammarError.originalError}
+                    {grammarError.grammarError}
                   </span>
                   <span className="text-[14px] font-medium text-(--color-text-primary)">
                     →
@@ -641,7 +935,7 @@ export const ErrorDetectionCorrection = forwardRef<
                 {/* 錯誤 → 正確 */}
                 <div className="bg-(--color-bg-secondary) rounded-[5px] px-[15px] py-[10px] flex items-center gap-[10px]">
                   <span className="text-[14px] font-medium text-red-500">
-                    {vocabError.wrongWord}
+                    {vocabError.vocabError}
                   </span>
                   <span className="text-[14px] font-medium text-(--color-text-primary)">
                     →
@@ -660,9 +954,8 @@ export const ErrorDetectionCorrection = forwardRef<
                   </span>
                 </div>
 
-                {/* 圖片區塊 - 只在名詞時顯示 */}
-                {vocabError.partOfSpeech === "noun" &&
-                  vocabError.searchKeyword ? (
+                {/* 圖片區塊 - 只在有 imageSearchKeyword 時顯示 */}
+                {vocabError.imageSearchKeyword ? (
                   <div className="w-full h-[200px] bg-gray-200 rounded-[5px] overflow-hidden relative">
                     {imageUrls.has(index) ? (
                       <Image
@@ -686,17 +979,10 @@ export const ErrorDetectionCorrection = forwardRef<
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div className="w-full h-[200px] bg-gray-200 rounded-[5px] flex items-center justify-center">
-                    <span className="text-(--color-text-tertiary) text-[14px]">
-                      Image placeholder
-                    </span>
-                  </div>
-                )}
+                ) : null}
 
                 {/* 詳細資訊 */}
-                {/* Translation, Synonyms, Related words, Antonyms - 同一行顯示 */}
-                <div className="flex flex-wrap items-center gap-[15px]">
+                <div className="flex flex-col gap-[10px]">
                   <div className="flex items-center gap-[5px]">
                     <p className="text-[14px] text-(--color-text-tertiary)">
                       Translation:
@@ -717,7 +1003,7 @@ export const ErrorDetectionCorrection = forwardRef<
                     </div>
                   )}
 
-                  {vocabError.relatedWords.length > 0 && (
+                  {vocabError.relatedWords && vocabError.relatedWords.length > 0 && (
                     <div className="flex items-center gap-[5px]">
                       <p className="text-[14px] text-(--color-text-tertiary)">
                         Related words:
@@ -728,7 +1014,7 @@ export const ErrorDetectionCorrection = forwardRef<
                     </div>
                   )}
 
-                  {vocabError.antonyms.length > 0 && (
+                  {vocabError.antonyms && vocabError.antonyms.length > 0 && (
                     <div className="flex items-center gap-[5px]">
                       <p className="text-[14px] text-(--color-text-tertiary)">
                         Antonyms:

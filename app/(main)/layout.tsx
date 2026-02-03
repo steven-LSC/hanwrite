@@ -20,16 +20,12 @@ import { UserMenu } from "@/components/user-menu/user-menu";
 function UserMenuTrigger({
   userName,
   currentLanguage,
-  currentModel,
   onLanguageChange,
-  onModelChange,
   onLogout,
 }: {
   userName: string;
   currentLanguage: string;
-  currentModel: string;
   onLanguageChange: (language: string) => void;
-  onModelChange: (model: string) => void;
   onLogout: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -64,9 +60,7 @@ function UserMenuTrigger({
       </div>
       <UserMenu
         currentLanguage={currentLanguage}
-        currentModel={currentModel}
         onLanguageChange={onLanguageChange}
-        onModelChange={onModelChange}
         onLogout={onLogout}
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
@@ -84,7 +78,6 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
   const [userName, setUserName] = useState<string>("");
   const [userAccount, setUserAccount] = useState<string>("");
   const [currentLanguage, setCurrentLanguage] = useState<string>("繁體中文");
-  const [currentModel, setCurrentModel] = useState<string>("gpt-4.1-mini");
   const prevWritingIdRef = useRef<string | undefined>(undefined);
 
   // 從 pathname 提取當前選中的 writingId
@@ -151,9 +144,6 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
         if (userData.responseLanguage) {
           setCurrentLanguage(userData.responseLanguage);
         }
-        if (userData.openaiModel) {
-          setCurrentModel(userData.openaiModel);
-        }
       } catch {
         setUserName("User");
         setUserAccount("");
@@ -197,40 +187,6 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("更新語言設定失敗:", error);
-    }
-  };
-
-  const handleModelChange = async (model: string) => {
-    try {
-      const response = await fetch("/api/user-settings", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ openaiModel: model }),
-      });
-
-      if (response.ok) {
-        const updatedSettings = await response.json();
-        setCurrentModel(updatedSettings.openaiModel);
-
-        // 更新 cookie（重新讀取）
-        const cookies = document.cookie.split("; ");
-        const authCookie = cookies.find((c) => c.startsWith("auth-user="));
-        if (authCookie) {
-          try {
-            const userData = JSON.parse(
-              decodeURIComponent(authCookie.split("=")[1])
-            );
-            userData.openaiModel = updatedSettings.openaiModel;
-            document.cookie = `auth-user=${encodeURIComponent(JSON.stringify(userData))}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-          } catch {
-            // 忽略錯誤
-          }
-        }
-      }
-    } catch (error) {
-      console.error("更新 Model 設定失敗:", error);
     }
   };
 
@@ -364,9 +320,7 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
             <UserMenuTrigger
               userName={userName}
               currentLanguage={currentLanguage}
-              currentModel={currentModel}
               onLanguageChange={handleLanguageChange}
-              onModelChange={handleModelChange}
               onLogout={handleLogout}
             />
           )}

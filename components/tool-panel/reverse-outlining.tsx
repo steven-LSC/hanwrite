@@ -17,6 +17,7 @@ import { useEditor } from "@/app/(main)/editor-context";
 
 export interface ReverseOutliningHandle {
   handleAnalyze: () => Promise<void>;
+  isAnalyzing: boolean;
 }
 
 interface ReverseOutliningProps {
@@ -88,9 +89,10 @@ export const ReverseOutlining = forwardRef<
     }
   };
 
-  // 暴露 handleAnalyze 給父元件
+  // 暴露 handleAnalyze 和 isAnalyzing 給父元件
   useImperativeHandle(ref, () => ({
     handleAnalyze,
+    isAnalyzing,
   }));
 
   // 切換卡片展開/收起狀態
