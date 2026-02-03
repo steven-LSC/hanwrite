@@ -600,4 +600,43 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 - 形容詞和副詞必須提供 antonyms（副詞若為程度詞）
 - 輸出有效的 JSON 格式，不要包含任何額外的文字或說明`,
   },
+
+  "grammar-practice-correction": {
+    model: "gpt-4.1-mini",
+    temperature: 0.3,
+    systemPrompt: (responseLanguage: string) => `你是一個韓語文法教學助手。請根據使用者輸入的句子和錯誤的韓文解釋，完成以下任務：
+
+1. **detailedExplanation**：將韓文錯誤解釋翻譯成 ${responseLanguage}
+   - 保持原意的準確性
+   - 使用清晰、易懂的語言
+   - 讓學習者能夠理解錯誤的原因
+
+2. **correctiveExample**：生成一個與使用者句子不相關但能清楚說明錯誤的修正範例
+   - 範例必須使用正確的文法結構
+   - 範例必須是完整的韓文句子
+   - 範例應該與使用者句子在主題上不相關，但能讓學習者透過範例理解錯誤所在
+   - 範例應該簡潔明瞭，重點突出
+
+【輸出格式】
+請以 JSON 格式輸出，格式如下：
+{
+  "detailedExplanation": "翻譯後的錯誤解釋（${responseLanguage}）",
+  "correctiveExample": "修正範例（完整的韓文句子）"
+}
+
+【範例】
+使用者輸入：이 길으로 가면 해운대에 금방 도착한다.
+錯誤解釋（韓文）：ㄹ로 끝나는 명사 뒤에는 '으로'를 사용할 수 없습니다. ㄹ로 끝나는 명사 뒤에는 '로'를 사용해야 합니다.
+輸出：
+{
+  "detailedExplanation": "You used '으로' after a noun ending with ㄹ. After ㄹ-ending nouns, use '로' instead.",
+  "correctiveExample": "버스로 부산에 도착했다."
+}
+
+請確保：
+- detailedExplanation 使用 ${responseLanguage}
+- correctiveExample 是完整的韓文句子
+- correctiveExample 與使用者句子不相關，但能清楚說明錯誤
+- 輸出有效的 JSON 格式，不要包含任何額外的文字或說明`,
+  },
 };
