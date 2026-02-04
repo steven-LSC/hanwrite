@@ -14,6 +14,7 @@ import { Loading } from "@/components/ui/loading";
 import { Button } from "@/components/ui/button";
 import { useEditor, ErrorPosition, EditorClickHandlerRef } from "@/app/(main)/editor-context";
 import { GrammarPracticeModal } from "./grammar-practice-modal";
+import { logBehavior } from "@/lib/log-behavior";
 
 export interface ErrorDetectionCorrectionHandle {
   handleAnalyze: () => Promise<void>;
@@ -380,6 +381,8 @@ export const ErrorDetectionCorrection = forwardRef<
     }
     // 清除選中的錯誤
     setSelectedErrorIndex(null);
+    // 關閉 showAll，避免在分析完成後自動重新 highlight
+    setShowAll(false);
 
     setIsAnalyzing(true);
     try {
@@ -402,8 +405,11 @@ export const ErrorDetectionCorrection = forwardRef<
       setResults(analysisResults);
       // 通知父元件更新狀態
       onResultsChange(analysisResults);
-      // 預設打開 showAll
-      setShowAll(true);
+      // 如果是第一次分析（沒有 results），預設打開 showAll
+      // 如果是 Update（已經有 results），保持 showAll 為 false，不自動 highlight
+      if (!results || results.length === 0) {
+        setShowAll(true);
+      }
     } catch (error) {
       console.error("Failed to analyze:", error);
     } finally {
@@ -540,6 +546,9 @@ export const ErrorDetectionCorrection = forwardRef<
   // 處理按鈕點擊
   const handleApplyCorrection = (index: number, errorType: "grammar" | "vocab", position: { start: number; end: number }) => {
     if (!results || !editorHighlightRef.current) return;
+
+    // 記錄行為
+    logBehavior("error-detection-apply");
 
     // 關閉 Show All
     setShowAll(false);
@@ -687,6 +696,9 @@ export const ErrorDetectionCorrection = forwardRef<
   };
 
   const handleSkip = (index: number) => {
+    // 記錄行為
+    logBehavior("error-detection-skip");
+
     // 關閉 Show All
     setShowAll(false);
 
@@ -734,6 +746,11 @@ export const ErrorDetectionCorrection = forwardRef<
     if (!('speechSynthesis' in window)) {
       console.warn('Speech synthesis not supported');
       return;
+    }
+
+    // 記錄行為（只在 vocab 類型時記錄）
+    if (errorType === "vocab") {
+      logBehavior("vocab-speaker-click");
     }
 
     // 取消任何正在進行的語音
@@ -956,7 +973,18 @@ export const ErrorDetectionCorrection = forwardRef<
 
                 {/* 圖片區塊 - 只在有 imageSearchKeyword 時顯示 */}
                 {vocabError.imageSearchKeyword ? (
-                  <div className="w-full h-[200px] bg-gray-200 rounded-[5px] overflow-hidden relative">
+                  <div
+                    className="w-full h-[200px] bg-gray-200 rounded-[5px] overflow-hidden relative cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (imageUrls.has(index)) {
+                        // 記錄行為
+                        logBehavior("vocab-image-click");
+                        // 在新視窗打開圖片
+                        window.open(imageUrls.get(index)!, "_blank");
+                      }
+                    }}
+                  >
                     {imageUrls.has(index) ? (
                       <Image
                         src={imageUrls.get(index)!}

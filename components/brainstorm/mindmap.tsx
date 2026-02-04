@@ -19,6 +19,7 @@ import {
   findInsertIndex,
 } from "@/lib/mindmap-utils";
 import { generateEdges, findAllDescendants } from "./mindmap-utils";
+import { useFocus } from "@/app/(main)/focus-context";
 
 interface MindmapProps {
   initialNodes?: Node[];
@@ -36,6 +37,7 @@ export function Mindmap({
   readonly = false,
 }: MindmapProps) {
   const { screenToFlowPosition, fitView, setCenter } = useReactFlow();
+  const { checkAndSetMindmapEditingState } = useFocus();
   const [nodes, setNodes, onNodesChangeInternal] =
     useNodesState<Node>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -49,6 +51,7 @@ export function Mindmap({
   // 處理節點 label 變更
   const handleLabelChange = useCallback(
     (nodeId: string, newLabel: string) => {
+      checkAndSetMindmapEditingState();
       isInternalUpdateRef.current = true;
       setNodes((nds) => {
         const updated = nds.map((node) =>
@@ -71,12 +74,13 @@ export function Mindmap({
         return updated;
       });
     },
-    [setNodes]
+    [setNodes, checkAndSetMindmapEditingState]
   );
 
   // 處理在節點下新增子節點
   const handleAddChild = useCallback(
     (parentId: string) => {
+      checkAndSetMindmapEditingState();
       isInternalUpdateRef.current = true;
       setNodes((nds) => {
         const parentNode = nds.find((n) => n.id === parentId);
@@ -109,7 +113,7 @@ export function Mindmap({
         return updated;
       });
     },
-    [setNodes, handleLabelChange]
+    [setNodes, handleLabelChange, checkAndSetMindmapEditingState]
   );
 
   // 同步外部 nodes 變化，並為它們添加 callbacks
@@ -171,10 +175,10 @@ export function Mindmap({
           ...(readonly
             ? {}
             : {
-                onLabelChange: (newLabel: string) =>
-                  handleLabelChange(node.id, newLabel),
-                onAddChild: handleAddChild,
-              }),
+              onLabelChange: (newLabel: string) =>
+                handleLabelChange(node.id, newLabel),
+              onAddChild: handleAddChild,
+            }),
         },
       }));
 
@@ -278,6 +282,7 @@ export function Mindmap({
   // 處理刪除節點（包含所有子節點）
   const handleDeleteNode = useCallback(
     (nodeId: string) => {
+      checkAndSetMindmapEditingState();
       isInternalUpdateRef.current = true;
       setNodes((nds) => {
         // 找出要刪除的節點
@@ -303,7 +308,7 @@ export function Mindmap({
         return updated;
       });
     },
-    [setNodes]
+    [setNodes, checkAndSetMindmapEditingState]
   );
 
   // 處理雙擊空白處新增 node
@@ -441,9 +446,9 @@ export function Mindmap({
         readonly
           ? undefined
           : (deleted) => {
-              // 當用戶按下 Delete 鍵時，刪除選中的節點
-              deleted.forEach((node) => handleDeleteNode(node.id));
-            }
+            // 當用戶按下 Delete 鍵時，刪除選中的節點
+            deleted.forEach((node) => handleDeleteNode(node.id));
+          }
       }
       onPaneClick={readonly ? undefined : handlePaneClick}
       onNodeClick={() => onCanvasClick?.()}

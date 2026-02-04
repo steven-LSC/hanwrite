@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { GrammarPracticeResult } from "@/lib/types";
 import { checkGrammarPractice } from "@/lib/data/grammar-practice";
+import { logBehavior } from "@/lib/log-behavior";
 
 interface GrammarPracticeModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export function GrammarPracticeModal({
   const handleCheck = async () => {
     if (!sentence.trim()) return;
 
+    logBehavior("grammar-practice-check");
     setIsChecking(true);
     try {
       const result = await checkGrammarPractice(sentence, grammarName, explanation);

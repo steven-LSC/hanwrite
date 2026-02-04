@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { ProficiencyReport } from "@/lib/types";
 import { getProficiencyReport, getWriting } from "@/lib/data/writings";
+import { logBehavior } from "@/lib/log-behavior";
 
 export interface ProficiencyReportHandle {
   openModal: () => void;
@@ -39,7 +40,9 @@ export const ProficiencyReportComponent = forwardRef<
 
   // 暴露 openModal 方法給父元件
   useImperativeHandle(ref, () => ({
-    openModal: () => setIsModalOpen(true),
+    openModal: () => {
+      setIsModalOpen(true);
+    },
   }));
 
   // Generate/Regenerate 功能
@@ -51,6 +54,7 @@ export const ProficiencyReportComponent = forwardRef<
       return;
     }
 
+    logBehavior("proficiency-report-generate");
     setIsGenerating(true);
     try {
       // 先取得文章內容

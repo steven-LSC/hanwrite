@@ -549,7 +549,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
   },
 
   "vocab-enhancement": {
-    model: "gpt-4.1-mini",
+    model: "gpt-4.1",
     temperature: 1,
     systemPrompt: (responseLanguage: string) => `你是一個韓語單字拼寫檢查助手。請檢查提供的韓文文章中的單字拼寫錯誤，並根據詞性提供相關學習資訊。
 

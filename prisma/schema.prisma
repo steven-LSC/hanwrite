@@ -14,13 +14,14 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(uuid())
-  username         String    @unique
+  id               String         @id @default(uuid())
+  username         String         @unique
   password         String
-  responseLanguage String    @default("繁體中文")
-  openaiModel      String    @default("gpt-4.1-mini")
+  responseLanguage String         @default("繁體中文")
+  openaiModel      String         @default("gpt-4.1-mini")
   mindmaps         Mindmap[]
   writings         Writing[]
+  behaviors        UserBehavior[]
 
   @@map("User")
 }
@@ -49,4 +50,14 @@ model Writing {
   updatedAt      DateTime @updatedAt
 
   @@map("Writing")
+}
+
+model UserBehavior {
+  id         String   @id @default(uuid())
+  userId     String
+  actionName String
+  timestamp  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("UserBehavior")
 }

@@ -20,6 +20,8 @@ import {
   ErrorDetectionResult,
   ToolState,
 } from "@/lib/types";
+import { logBehavior } from "@/lib/log-behavior";
+import { useFocus } from "@/app/(main)/focus-context";
 
 type ToolType =
   | "reference-panel"
@@ -52,6 +54,7 @@ interface ToolPanelProps {
 export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => {
   const params = useParams();
   const writingId = params.writingId as string | undefined;
+  const { setActivityState } = useFocus();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   // 工具狀態管理（一次只記住一個文章的狀態）
@@ -324,6 +327,9 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
       currentTool: tool,
     }));
     setIsDropdownOpen(false);
+    // 記錄工具選擇行為
+    logBehavior(`tool-select-${tool}`);
+    setActivityState("tool-using");
   };
 
   // 工具選項資料結構
@@ -438,6 +444,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
                         currentTool === "ai-analysis" &&
                         button.label === "Report"
                       ) {
+                        logBehavior("proficiency-report-open");
                         if (aiAnalysisRef.current) {
                           aiAnalysisRef.current.openReportModal();
                         }
@@ -505,16 +512,19 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
                 onClick={async () => {
                   // 如果是 Reference Panel，開啟 Modal
                   if (currentTool === "reference-panel") {
+                    logBehavior("reference-panel-find");
                     if (referencePanelRef.current) {
                       referencePanelRef.current.openModal();
                     }
                   } else if (currentTool === "reverse-outlining") {
                     // 如果是 Reverse Outlining，呼叫元件的 handleAnalyze
+                    logBehavior("reverse-outlining");
                     if (reverseOutliningRef.current) {
                       await reverseOutliningRef.current.handleAnalyze();
                     }
                   } else if (currentTool === "ai-analysis") {
                     // 呼叫 Error Detection & Correction 的 handleAnalyze
+                    logBehavior("error-detection");
                     if (aiAnalysisRef.current) {
                       await aiAnalysisRef.current.handleErrorDetectionAnalyze();
                     }

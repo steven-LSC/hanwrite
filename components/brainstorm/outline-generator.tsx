@@ -8,6 +8,7 @@ import { Loading } from "@/components/ui/loading";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import { OutlineData } from "@/lib/types";
 import { generateOutline, saveOutline } from "@/lib/data/outline";
+import { logBehavior } from "@/lib/log-behavior";
 
 interface OutlineGeneratorProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ export function OutlineGenerator({
   }, [isOpen, savedOutline]);
 
   const handleGenerate = async () => {
+    logBehavior("outline-generator");
     setIsGenerating(true);
     try {
       const generated = await generateOutline(title, nodes);
@@ -54,6 +56,7 @@ export function OutlineGenerator({
   };
 
   const handleRegenerate = async () => {
+    logBehavior("outline-generator");
     setIsGenerating(true);
     try {
       const generated = await generateOutline(title, nodes);
@@ -67,6 +70,7 @@ export function OutlineGenerator({
 
   const handleSave = async () => {
     if (!outline) return;
+    logBehavior("outline-generator-save");
 
     setIsSaving(true);
     try {

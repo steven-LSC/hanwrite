@@ -6,6 +6,7 @@ import { Loading } from "../ui/loading";
 import { ErrorMessage } from "../ui/error-message";
 import { ExpressionBuilderResult } from "@/lib/types";
 import { getExpressionBuilderResults } from "@/lib/data/writings";
+import { logBehavior } from "@/lib/log-behavior";
 
 export interface ExpressionBuilderHandle {
   isAnalyzing: boolean;
@@ -78,6 +79,8 @@ export const ExpressionBuilder = forwardRef<ExpressionBuilderHandle, ExpressionB
       }
 
       const analysisResults = await getExpressionBuilderResults(inputText);
+      // 記錄行為
+      logBehavior("expression-builder");
       // 只有在元件還掛載時才更新本地狀態
       if (isMountedRef.current) {
         setResults(analysisResults);

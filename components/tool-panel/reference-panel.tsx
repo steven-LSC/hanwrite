@@ -17,6 +17,7 @@ import {
 } from "@/components/brainstorm/use-mindmap-data";
 import { type OutlineData, type ReferencePanelData } from "@/lib/types";
 import { getAllMindmaps, getMindmapById } from "@/lib/data/mindmap";
+import { logBehavior } from "@/lib/log-behavior";
 
 export interface ReferencePanelHandle {
   openModal: () => void;
@@ -114,6 +115,7 @@ export const ReferencePanel = forwardRef<
   // 處理 Load 按鈕點擊
   const handleLoad = () => {
     if (selectedMindmapData) {
+      logBehavior("reference-panel-load");
       const dataToLoad: ReferencePanelData = {
         mindmap: {
           id: selectedMindmapData.id,

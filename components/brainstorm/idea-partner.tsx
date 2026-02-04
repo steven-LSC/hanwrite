@@ -5,6 +5,7 @@ import { type Node } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { getIdeaPartnerCards, type IdeaPartnerCard } from "@/lib/data/idea-partner";
+import { logBehavior } from "@/lib/log-behavior";
 
 interface IdeaPartnerProps {
   isOpen: boolean;
@@ -105,6 +106,9 @@ export function IdeaPartner({
   };
 
   const handleSkip = (nodeId: string) => {
+    // 記錄行為
+    logBehavior("idea-partner-skip");
+
     // 直接標記為 skipped，不需要高亮節點
     setSkippedCards((prev) => new Set(prev).add(nodeId));
     // 如果當前選中的是這個節點，清除選中狀態
@@ -145,6 +149,8 @@ export function IdeaPartner({
     }
 
     if (onAddBlock) {
+      // 記錄行為
+      logBehavior("idea-partner-add-block");
       // 先標記為已新增，讓卡片立即消失
       setAddedCards((prev) => new Set(prev).add(nodeId));
       // 清除選中狀態

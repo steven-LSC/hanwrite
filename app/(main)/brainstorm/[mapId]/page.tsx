@@ -13,6 +13,7 @@ import { type OutlineData } from "@/lib/types";
 import { findRootNode, calculateTreePositions } from "@/lib/mindmap-utils";
 import { getAllMindmaps, createMindmap, getMindmapById, updateMindmap } from "@/lib/data/mindmap";
 import { type MindmapMetadata } from "@/components/brainstorm/use-mindmap-data";
+import { logBehavior } from "@/lib/log-behavior";
 
 const TEMP_MAP_ID = "new";
 
@@ -394,7 +395,10 @@ function BrainstormPageContent() {
       <IdeaPartner
         isOpen={isIdeaPartnerOpen}
         hasScanned={hasScannedIdeaPartner}
-        onScan={() => setHasScannedIdeaPartner(true)}
+        onScan={() => {
+          logBehavior("idea-partner-scan");
+          setHasScannedIdeaPartner(true);
+        }}
         onAddBlock={handleAddBlockFromIdeaPartner}
         nodes={nodes}
         onNodeSelect={handleNodeSelect}

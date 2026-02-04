@@ -25,6 +25,7 @@ import {
 } from "@/lib/types";
 import { useFocus } from "@/app/(main)/focus-context";
 import { useEditor, EditorHighlightRef, EditorContentRef, ErrorPosition, EditorClickHandlerRef } from "@/app/(main)/editor-context";
+import { logBehavior } from "@/lib/log-behavior";
 
 interface EditorProps {
   initialTitle?: string;
@@ -51,7 +52,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     },
     ref
   ) => {
-    const { isFocusMode, toggleFocus } = useFocus();
+    const { isFocusMode, toggleFocus, checkAndSetWritingState } = useFocus();
     const { editorHighlightRef, editorContentRef, editorClickHandlerRef } = useEditor();
     const [title, setTitle] = useState(initialTitle);
     const [content, setContent] = useState(initialContent);
@@ -631,6 +632,8 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         if (highlightRef.current) {
           clearHighlight();
         }
+        // 記錄寫作狀態
+        checkAndSetWritingState();
       }
     };
 
@@ -803,6 +806,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
     // 選擇 Expansion Hint
     const handleSelectExpansionHint = async () => {
+      logBehavior("expansion-hint-select");
       setMenuStage("expansion-hint");
       setIsLoadingHints(true);
       setSelectedHintIndex(null);
@@ -839,6 +843,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
     // 選擇 Paraphrase（直接調用 API）
     const handleSelectParaphrase = async () => {
+      logBehavior("paraphrase-select");
       setMenuStage("paraphrase-result");
       setIsLoadingParaphrase(true);
       setSelectionError(null);
@@ -874,12 +879,14 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
     // Discard Paraphrase（關閉視窗）
     const handleDiscardParaphrase = () => {
+      logBehavior("paraphrase-discard");
       setShowContextMenu(false);
     };
 
     // 套用 Paraphrase 修改到編輯器
     const handleReplaceParaphrase = (enabledChanges: Set<number>) => {
       if (!paraphraseResult || !editorRef.current) return;
+      logBehavior("paraphrase-apply");
 
       // 取得要套用的修改（按照索引排序）
       const changesToApply = paraphraseResult.changes
@@ -926,6 +933,8 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
     // Discard Expansion Hints（關閉視窗）
     const handleDiscardHints = () => {
+      // 記錄行為
+      logBehavior("expansion-hint-discard");
       setShowContextMenu(false);
     };
 
@@ -943,6 +952,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     // 插入選中的 Hint
     const handleInsertHint = () => {
       if (selectedHintIndex === null || !editorRef.current) return;
+      logBehavior("expansion-hint-insert");
 
       const selectedHint = hints[selectedHintIndex];
       // 移除換行符號，只保留單行文字，並在前面加一個空格
@@ -984,6 +994,8 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
                 const newTitle = e.target.value;
                 setTitle(newTitle);
                 onTitleChange?.(newTitle);
+                // 記錄寫作狀態
+                checkAndSetWritingState();
               }}
               placeholder="Title"
               spellCheck={false}
@@ -1020,6 +1032,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
                 contentEditable
                 spellCheck={false}
                 onInput={handleInput}
+                onClick={checkAndSetWritingState}
                 onMouseUp={handleMouseUp}
                 suppressContentEditableWarning
                 suppressHydrationWarning
