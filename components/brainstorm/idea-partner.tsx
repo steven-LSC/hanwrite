@@ -102,6 +102,10 @@ export function IdeaPartner({
         onNodeSelect(null);
       }
     } else {
+      // 清空原本選中卡片的輸入
+      if (selectedCardNodeId) {
+        setIdeaInputs((prev) => ({ ...prev, [selectedCardNodeId]: "" }));
+      }
       // 選中新的卡片
       setSelectedCardNodeId(nodeId);
       if (onNodeSelect) {
@@ -127,6 +131,8 @@ export function IdeaPartner({
       logBehavior("idea-partner-skip");
     }
 
+    // 清空該卡片的輸入
+    setIdeaInputs((prev) => ({ ...prev, [nodeId]: "" }));
     // 直接標記為 skipped，不需要高亮節點
     setSkippedCards((prev) => new Set(prev).add(nodeId));
     // 如果當前選中的是這個節點，清除選中狀態
@@ -284,6 +290,10 @@ export function IdeaPartner({
                     onFocus={() => {
                       // 聚焦時也選中卡片
                       if (selectedCardNodeId !== card.nodeId) {
+                        // 清空原本選中卡片的輸入
+                        if (selectedCardNodeId) {
+                          setIdeaInputs((prev) => ({ ...prev, [selectedCardNodeId]: "" }));
+                        }
                         setSelectedCardNodeId(card.nodeId);
                         if (onNodeSelect) {
                           onNodeSelect(card.nodeId);
@@ -291,7 +301,7 @@ export function IdeaPartner({
                       }
                     }}
                     placeholder="Type your idea"
-                    className="h-[34px] w-full bg-(--color-bg-primary) rounded-[5px] px-[10px] py-[5px] text-(--color-text-secondary) text-[14px] font-medium outline-none border border-(--color-border) placeholder:text-(--color-text-tertiary)"
+                    className="bg-white h-[34px] w-full rounded-[5px] px-[10px] py-[5px] text-(--color-text-secondary) text-[14px] font-medium outline-none border border-(--color-border) placeholder:text-(--color-text-tertiary)"
                   />
                   <div className="flex items-center gap-[10px]" onClick={(e) => e.stopPropagation()}>
                     <Button

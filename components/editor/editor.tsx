@@ -695,7 +695,11 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       setTimeout(() => {
         const range = getSelectionRange(editor);
         if (!range) {
-          setShowContextMenu(false);
+          // 只在 initial stage 時才允許點擊編輯器關閉選單
+          // Paraphrase & expansion hint 只能透過 discard 按鈕關閉
+          if (menuStage === "initial") {
+            setShowContextMenu(false);
+          }
           // 當沒有選取文字時，清除 highlight（保留錯誤卡片）
           if (editorHighlightRef.current) {
             editorHighlightRef.current.clearHighlight();
@@ -712,6 +716,15 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
         // 如果有選取文字，顯示選單
         if (selected.trim().length > 0) {
+          // 如果 Paraphrase 或 Expansion Hint 正在顯示，不要覆蓋現有的選單
+          // 只能透過 discard 按鈕關閉
+          if (menuStage !== "initial") {
+            // 保持反白效果，但不改變選單狀態
+            editor.focus();
+            setSelectionRange(editor, start, end);
+            return;
+          }
+
           setSelectedText(selected);
           setSelectionStart(start);
           setSelectionEnd(end);
@@ -728,7 +741,11 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
           editor.focus();
           setSelectionRange(editor, start, end);
         } else {
-          setShowContextMenu(false);
+          // 只在 initial stage 時才允許點擊編輯器關閉選單
+          // Paraphrase & expansion hint 只能透過 discard 按鈕關閉
+          if (menuStage === "initial") {
+            setShowContextMenu(false);
+          }
           // 當沒有選取文字時，清除 highlight（保留錯誤卡片）
           if (editorHighlightRef.current) {
             editorHighlightRef.current.clearHighlight();
@@ -741,9 +758,14 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       }, 10);
     };
 
-    // 點擊外部或編輯器內部關閉選單
+    // 點擊外部或編輯器內部關閉選單（只在 initial stage 時生效）
     useEffect(() => {
       const handleClickOutside = (event: MouseEvent) => {
+        // 只在 initial stage 時才允許點擊外部關閉
+        // Paraphrase & expansion hint 只能透過 discard 按鈕關閉
+        if (menuStage !== "initial") {
+          return;
+        }
         // 如果點擊的不是選單內部，就關閉選單
         if (
           menuRef.current &&
@@ -760,13 +782,16 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       return () => {
         document.removeEventListener("mousedown", handleClickOutside);
       };
-    }, [showContextMenu]);
+    }, [showContextMenu, menuStage]);
 
-    // 監聽鍵盤事件，按下 Delete 或 Backspace 時關閉選單
+    // 監聽鍵盤事件，按下 Delete 或 Backspace 時關閉選單（只在 initial stage 時生效）
     useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
+        // 只在 initial stage 時才允許按鍵關閉選單
+        // Paraphrase & expansion hint 只能透過 discard 按鈕關閉
         if (
           showContextMenu &&
+          menuStage === "initial" &&
           (event.key === "Delete" || event.key === "Backspace")
         ) {
           setShowContextMenu(false);
@@ -780,13 +805,19 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       return () => {
         document.removeEventListener("keydown", handleKeyDown);
       };
-    }, [showContextMenu]);
+    }, [showContextMenu, menuStage]);
 
-    // 當選取文字被刪除或改變時，關閉選單
+    // 當選取文字被刪除或改變時，關閉選單（只在 initial stage 時生效）
     useEffect(() => {
       if (!showContextMenu || !editorRef.current) return;
 
       const checkSelection = () => {
+        // 只在 initial stage 時才允許選取文字改變時關閉選單
+        // Paraphrase & expansion hint 只能透過 discard 按鈕關閉
+        if (menuStage !== "initial") {
+          return;
+        }
+
         const editor = editorRef.current;
         if (!editor) return;
 
@@ -811,7 +842,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       return () => {
         clearTimeout(timeoutId);
       };
-    }, [content, showContextMenu, selectedText]);
+    }, [content, showContextMenu, selectedText, menuStage]);
 
     // 計算選單的最佳顯示位置
     useEffect(() => {

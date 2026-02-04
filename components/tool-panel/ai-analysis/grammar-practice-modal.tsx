@@ -121,6 +121,7 @@ export function GrammarPracticeModal({
               onChange={(e) => setSentence(e.target.value)}
               placeholder="Make a sentence"
               disabled={isChecking}
+              spellCheck={false}
               className="w-full h-[40px] px-[20px] py-[10px] border border-(--color-border) rounded-[10px] text-[16px] text-(--color-text-primary) outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
 

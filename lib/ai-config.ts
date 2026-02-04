@@ -379,7 +379,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 {
   "results": [
     {
-      "outline": "段落大綱（必須是一句話）",
+      "outline": "段落大綱（必須是一句話，使用 ${responseLanguage}）",
       "reasons": [
         "第一個原因：描述原本段落說了什麼（使用 ${responseLanguage}）",
         "第二個原因：說明為什麼決定這樣濃縮（使用 ${responseLanguage}）"
@@ -389,7 +389,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 }
 
 **重要規則：**
-1. **outline 必須是一句話**：每個段落的大綱必須濃縮成單一句話
+1. **outline 必須是一句話**：每個段落的大綱必須濃縮成單一句話，使用 ${responseLanguage}
 2. **reasons 固定兩個元素**：
    - reasons[0]：描述原本段落的主要內容和細節（使用 ${responseLanguage}）
    - reasons[1]：說明為什麼決定這樣濃縮，解釋濃縮的邏輯和重點（使用 ${responseLanguage}）
@@ -403,10 +403,10 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 {
   "results": [
     {
-      "outline": "(一句話的大綱)",
+      "outline": "(一句話的大綱，使用 ${responseLanguage})",
       "reasons": [
-        "(描述原本段落說了什麼)",
-        "(說明為什麼決定這樣濃縮)"
+        "(描述原本段落說了什麼，使用 ${responseLanguage})",
+        "(說明為什麼決定這樣濃縮，使用 ${responseLanguage})"
       ]
     }
   ]
@@ -577,7 +577,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
       "synonyms": ["同義詞1", "同義詞2", "同義詞3"],
       "relatedWords": ["相關詞1", "相關詞2", "相關詞3"], // 名詞和動詞必需
       "antonyms": ["反義詞1", "反義詞2", "反義詞3"], // 形容詞和副詞
-      "imageSearchKeyword": "圖片搜尋關鍵字", // 僅名詞需要
+      "imageSearchKeyword": "圖片搜尋關鍵字(英文，不需要翻譯)", // 僅名詞需要
       "example": "符合文章語境的韓文例句，但是不能是文章中的句子，必須是新的句子"
     }
   ]
@@ -598,6 +598,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 - 名詞必須提供 imageSearchKeyword
 - 名詞和動詞必須提供 relatedWords
 - 形容詞和副詞必須提供 antonyms（副詞若為程度詞）
+- imageSearchKeyword 必須是英文，不需要翻譯
 - 輸出有效的 JSON 格式，不要包含任何額外的文字或說明`,
   },
 
