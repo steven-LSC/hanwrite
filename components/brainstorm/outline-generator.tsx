@@ -43,11 +43,12 @@ export function OutlineGenerator({
   }, [isOpen, savedOutline]);
 
   const handleGenerate = async () => {
-    logBehavior("outline-generator");
     setIsGenerating(true);
     try {
       const generated = await generateOutline(title, nodes);
       setOutline(generated);
+      // 收到結果後記錄
+      logBehavior("outline-generator-generate", generated);
     } catch (error) {
       console.error("Failed to generate outline:", error);
     } finally {
@@ -56,11 +57,12 @@ export function OutlineGenerator({
   };
 
   const handleRegenerate = async () => {
-    logBehavior("outline-generator");
     setIsGenerating(true);
     try {
       const generated = await generateOutline(title, nodes);
       setOutline(generated);
+      // 收到結果後記錄
+      logBehavior("outline-generator-generate", generated);
     } catch (error) {
       console.error("Failed to regenerate outline:", error);
     } finally {
@@ -70,7 +72,8 @@ export function OutlineGenerator({
 
   const handleSave = async () => {
     if (!outline) return;
-    logBehavior("outline-generator-save");
+    // 記錄 save 時把 generate 時的資料帶進去
+    logBehavior("outline-generator-save", outline);
 
     setIsSaving(true);
     try {

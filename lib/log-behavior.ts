@@ -3,8 +3,9 @@
 /**
  * 記錄使用者行為
  * @param actionName 行為名稱
+ * @param resultData 可選的結果資料（JSON 格式）
  */
-export async function logBehavior(actionName: string): Promise<void> {
+export async function logBehavior(actionName: string, resultData?: any): Promise<void> {
   try {
     // 從 cookie 讀取 userId
     const cookies = document.cookie.split("; ");
@@ -29,7 +30,11 @@ export async function logBehavior(actionName: string): Promise<void> {
       fetch("/api/log-behavior", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: userData.userId, actionName }),
+        body: JSON.stringify({ 
+          userId: userData.userId, 
+          actionName,
+          resultData: resultData !== undefined ? resultData : undefined,
+        }),
       }).catch((error) => {
         console.error(`[Log Behavior] 記錄行為失敗:`, error);
       });

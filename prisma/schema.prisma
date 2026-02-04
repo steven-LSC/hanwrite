@@ -56,6 +56,7 @@ model UserBehavior {
   id         String   @id @default(uuid())
   userId     String
   actionName String
+  resultData Json?
   timestamp  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

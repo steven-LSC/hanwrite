@@ -30,11 +30,12 @@ export function GrammarPracticeModal({
   const handleCheck = async () => {
     if (!sentence.trim()) return;
 
-    logBehavior("grammar-practice-check");
     setIsChecking(true);
     try {
       const result = await checkGrammarPractice(sentence, grammarName, explanation);
       setCheckResult(result);
+      // 收到結果後記錄
+      logBehavior("grammar-practice-check", result);
     } catch (error) {
       console.error("Failed to check grammar practice:", error);
     } finally {

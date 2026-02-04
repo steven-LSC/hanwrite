@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
  */
 export async function POST(request: NextRequest) {
   try {
-    const { userId, actionName } = await request.json();
+    const { userId, actionName, resultData } = await request.json();
 
     // 驗證輸入
     if (!userId || typeof userId !== "string") {
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         actionName,
+        resultData: resultData !== undefined ? resultData : null,
       },
     });
 

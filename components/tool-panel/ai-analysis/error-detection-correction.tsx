@@ -8,7 +8,7 @@ import React, {
   useRef,
 } from "react";
 import Image from "next/image";
-import { getErrorDetectionResults } from "@/lib/data/writings";
+import { getErrorDetectionResults, getWriting } from "@/lib/data/writings";
 import { ErrorDetectionResult, GrammarErrorInput, VocabErrorInput } from "@/lib/types";
 import { Loading } from "@/components/ui/loading";
 import { Button } from "@/components/ui/button";
@@ -405,6 +405,26 @@ export const ErrorDetectionCorrection = forwardRef<
       setResults(analysisResults);
       // 通知父元件更新狀態
       onResultsChange(analysisResults);
+
+      // 取得 title（如果 writingId 存在）
+      let title: string | null = null;
+      if (writingId && writingId !== "new") {
+        try {
+          const writing = await getWriting(writingId);
+          title = writing.title;
+        } catch (error) {
+          // 如果取得 title 失敗，繼續執行，title 保持為 null
+          console.warn("Failed to get writing title:", error);
+        }
+      }
+
+      // 收到結果後記錄：當時的文章、title、回傳結果（不包含 errorPosition，因為那是前端計算的）
+      logBehavior("error-detection-analyze", {
+        content,
+        title,
+        results: analysisResultsWithoutPosition,
+      });
+
       // 如果是第一次分析（沒有 results），預設打開 showAll
       // 如果是 Update（已經有 results），保持 showAll 為 false，不自動 highlight
       if (!results || results.length === 0) {
@@ -547,23 +567,30 @@ export const ErrorDetectionCorrection = forwardRef<
   const handleApplyCorrection = (index: number, errorType: "grammar" | "vocab", position: { start: number; end: number }) => {
     if (!results || !editorHighlightRef.current) return;
 
-    // 記錄行為
-    logBehavior("error-detection-apply");
-
     // 關閉 Show All
     setShowAll(false);
 
-    // 取得正確文字
+    // 取得正確文字和完整的錯誤資訊
     let correctText: string;
+    let errorData: any;
     if (errorType === "grammar") {
       const grammarError = results[index];
       if (grammarError.type !== "grammar") return;
       correctText = grammarError.data.correctSentence;
+      errorData = grammarError.data;
     } else {
       const vocabError = results[index];
       if (vocabError.type !== "vocab") return;
       correctText = vocabError.data.correctWord;
+      errorData = vocabError.data;
     }
+
+    // 記錄 apply 的卡片的所有資訊
+    logBehavior("error-detection-apply", {
+      errorType,
+      errorData,
+      position,
+    });
 
     // 計算文字長度變化
     const originalLength = position.end - position.start;
@@ -696,11 +723,20 @@ export const ErrorDetectionCorrection = forwardRef<
   };
 
   const handleSkip = (index: number) => {
-    // 記錄行為
-    logBehavior("error-detection-skip");
+    if (!results) return;
 
     // 關閉 Show All
     setShowAll(false);
+
+    // 取得完整的錯誤資訊
+    const error = results[index];
+    const errorData = error.type === "grammar" ? error.data : error.data;
+
+    // 記錄 skip 的卡片的所有資訊
+    logBehavior("error-detection-skip", {
+      errorType: error.type,
+      errorData,
+    });
 
     // 將錯誤索引添加到 skippedErrors Set
     setSkippedErrors((prev) => {
@@ -916,6 +952,11 @@ export const ErrorDetectionCorrection = forwardRef<
                   <h3 className="font-medium text-[16px] text-(--color-text-primary)">
                     {vocabError.correctWord}
                   </h3>
+                  {vocabError.partOfSpeech && (
+                    <span className="text-[14px] text-(--color-text-tertiary)">
+                      {vocabError.partOfSpeech}
+                    </span>
+                  )}
                 </div>
                 <Button
                   variant="cancel"
@@ -947,6 +988,11 @@ export const ErrorDetectionCorrection = forwardRef<
                   <h3 className="font-medium text-[16px] text-(--color-text-primary)">
                     {vocabError.correctWord}
                   </h3>
+                  {vocabError.partOfSpeech && (
+                    <span className="text-[14px] text-(--color-text-tertiary)">
+                      {vocabError.partOfSpeech}
+                    </span>
+                  )}
                 </div>
 
                 {/* 錯誤 → 正確 */}

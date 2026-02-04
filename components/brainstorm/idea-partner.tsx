@@ -46,6 +46,10 @@ export function IdeaPartner({
             initial[card.nodeId] = card.idea;
           });
           setIdeaInputs(initial);
+          // 掃描完成後記錄結果
+          logBehavior("idea-partner-scan", {
+            cards: fetchedCards,
+          });
         })
         .catch((error) => {
           console.error("Failed to fetch idea partner cards:", error);
@@ -106,8 +110,21 @@ export function IdeaPartner({
   };
 
   const handleSkip = (nodeId: string) => {
-    // 記錄行為
-    logBehavior("idea-partner-skip");
+    // 找到對應的 card
+    const card = cards.find((c) => c.nodeId === nodeId);
+    // 記錄 skip 的卡片
+    if (card) {
+      logBehavior("idea-partner-skip", {
+        card: {
+          nodeId: card.nodeId,
+          title: card.title,
+          description: card.description,
+          idea: card.idea,
+        },
+      });
+    } else {
+      logBehavior("idea-partner-skip");
+    }
 
     // 直接標記為 skipped，不需要高亮節點
     setSkippedCards((prev) => new Set(prev).add(nodeId));
@@ -149,8 +166,18 @@ export function IdeaPartner({
     }
 
     if (onAddBlock) {
-      // 記錄行為
-      logBehavior("idea-partner-add-block");
+      // 找到對應的 card
+      const card = cards.find((c) => c.nodeId === nodeId);
+      // 記錄插入的整塊資訊
+      logBehavior("idea-partner-add-block", {
+        source: card ? {
+          nodeId: card.nodeId,
+          title: card.title,
+          description: card.description,
+        } : null,
+        prompt: card?.description || "",
+        input: ideaText,
+      });
       // 先標記為已新增，讓卡片立即消失
       setAddedCards((prev) => new Set(prev).add(nodeId));
       // 清除選中狀態

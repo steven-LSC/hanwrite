@@ -806,7 +806,6 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
     // 選擇 Expansion Hint
     const handleSelectExpansionHint = async () => {
-      logBehavior("expansion-hint-select");
       setMenuStage("expansion-hint");
       setIsLoadingHints(true);
       setSelectedHintIndex(null);
@@ -821,6 +820,10 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       try {
         const fetchedHints = await getExpansionHints(selectedText);
         setHints(fetchedHints);
+        // 收到結果後記錄
+        logBehavior("expansion-hint-generate", {
+          hints: fetchedHints,
+        });
       } catch (error) {
         // 處理 API 錯誤
         const errorMessage =
@@ -843,7 +846,6 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
     // 選擇 Paraphrase（直接調用 API）
     const handleSelectParaphrase = async () => {
-      logBehavior("paraphrase-select");
       setMenuStage("paraphrase-result");
       setIsLoadingParaphrase(true);
       setSelectionError(null);
@@ -857,6 +859,11 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       try {
         const result = await getParaphraseResult(selectedText);
         setParaphraseResult(result);
+        // 收到結果後記錄
+        logBehavior("paraphrase-generate", {
+          originalText: result.originalText,
+          changes: result.changes,
+        });
       } catch (error) {
         // 處理 API 錯誤
         const errorMessage =
@@ -879,14 +886,21 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
     // Discard Paraphrase（關閉視窗）
     const handleDiscardParaphrase = () => {
-      logBehavior("paraphrase-discard");
+      // 記錄 discard 的結果（如果存在）
+      if (paraphraseResult) {
+        logBehavior("paraphrase-discard", {
+          originalText: paraphraseResult.originalText,
+          changes: paraphraseResult.changes,
+        });
+      } else {
+        logBehavior("paraphrase-discard");
+      }
       setShowContextMenu(false);
     };
 
     // 套用 Paraphrase 修改到編輯器
     const handleReplaceParaphrase = (enabledChanges: Set<number>) => {
       if (!paraphraseResult || !editorRef.current) return;
-      logBehavior("paraphrase-apply");
 
       // 取得要套用的修改（按照索引排序）
       const changesToApply = paraphraseResult.changes
@@ -905,6 +919,11 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         const before = selectedContent.substring(0, change.position.start);
         const after = selectedContent.substring(change.position.end);
         selectedContent = before + change.revised + after;
+      });
+
+      // 記錄最終插入的句子（可編輯的）
+      logBehavior("paraphrase-apply", {
+        finalSentence: selectedContent,
       });
 
       // 替換編輯器中的文字
@@ -933,8 +952,14 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
     // Discard Expansion Hints（關閉視窗）
     const handleDiscardHints = () => {
-      // 記錄行為
-      logBehavior("expansion-hint-discard");
+      // 記錄 discard 時把 generate 時候的結果再次記錄
+      if (hints.length > 0) {
+        logBehavior("expansion-hint-discard", {
+          hints: hints,
+        });
+      } else {
+        logBehavior("expansion-hint-discard");
+      }
       setShowContextMenu(false);
     };
 
@@ -952,12 +977,16 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     // 插入選中的 Hint
     const handleInsertHint = () => {
       if (selectedHintIndex === null || !editorRef.current) return;
-      logBehavior("expansion-hint-insert");
 
       const selectedHint = hints[selectedHintIndex];
       // 移除換行符號，只保留單行文字，並在前面加一個空格
       const cleanExample = selectedHint.example.replace(/\n/g, " ").trim();
       const textToInsert = " " + cleanExample;
+
+      // 記錄插入的 hint（只記錄 insertedHint）
+      logBehavior("expansion-hint-insert", {
+        insertedHint: selectedHint,
+      });
 
       // 在反白文字後面插入
       const newContent =

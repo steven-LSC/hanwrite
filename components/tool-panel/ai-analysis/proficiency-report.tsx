@@ -54,7 +54,6 @@ export const ProficiencyReportComponent = forwardRef<
       return;
     }
 
-    logBehavior("proficiency-report-generate");
     setIsGenerating(true);
     try {
       // 先取得文章內容
@@ -64,6 +63,8 @@ export const ProficiencyReportComponent = forwardRef<
       const reportData = await getProficiencyReport(writing.title, writing.content);
       setReport(reportData);
       onResultsChange(reportData);
+      // 收到結果後記錄
+      logBehavior("proficiency-report-generate", reportData);
     } catch (error) {
       console.error("Failed to generate proficiency report:", error);
       alert("Failed to generate proficiency report. Please try again.");

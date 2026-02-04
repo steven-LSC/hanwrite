@@ -396,7 +396,6 @@ function BrainstormPageContent() {
         isOpen={isIdeaPartnerOpen}
         hasScanned={hasScannedIdeaPartner}
         onScan={() => {
-          logBehavior("idea-partner-scan");
           setHasScannedIdeaPartner(true);
         }}
         onAddBlock={handleAddBlockFromIdeaPartner}

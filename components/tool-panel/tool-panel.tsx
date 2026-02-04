@@ -444,7 +444,12 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
                         currentTool === "ai-analysis" &&
                         button.label === "Report"
                       ) {
-                        logBehavior("proficiency-report-open");
+                        // 記錄 open 時把 report 資料帶進去
+                        if (toolState["ai-analysis"]) {
+                          logBehavior("proficiency-report-open", toolState["ai-analysis"]);
+                        } else {
+                          logBehavior("proficiency-report-open");
+                        }
                         if (aiAnalysisRef.current) {
                           aiAnalysisRef.current.openReportModal();
                         }
@@ -518,13 +523,13 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
                     }
                   } else if (currentTool === "reverse-outlining") {
                     // 如果是 Reverse Outlining，呼叫元件的 handleAnalyze
-                    logBehavior("reverse-outlining");
+                    // 記錄將在 handleAnalyze 中收到結果後進行
                     if (reverseOutliningRef.current) {
                       await reverseOutliningRef.current.handleAnalyze();
                     }
                   } else if (currentTool === "ai-analysis") {
                     // 呼叫 Error Detection & Correction 的 handleAnalyze
-                    logBehavior("error-detection");
+                    // 記錄將在 handleAnalyze 中收到結果後進行
                     if (aiAnalysisRef.current) {
                       await aiAnalysisRef.current.handleErrorDetectionAnalyze();
                     }

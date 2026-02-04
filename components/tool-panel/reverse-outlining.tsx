@@ -14,6 +14,7 @@ import { ReverseOutliningResult } from "@/lib/types";
 import { Loading } from "../ui/loading";
 import { ErrorMessage } from "../ui/error-message";
 import { useEditor } from "@/app/(main)/editor-context";
+import { logBehavior } from "@/lib/log-behavior";
 
 export interface ReverseOutliningHandle {
   handleAnalyze: () => Promise<void>;
@@ -72,6 +73,8 @@ export const ReverseOutlining = forwardRef<
       setResults(analysisResults);
       // 通知父元件更新狀態
       onResultsChange(analysisResults);
+      // 收到結果後記錄
+      logBehavior("reverse-outlining-generate", analysisResults);
       // 重置展開狀態，預設都不展開
       setExpandedCards(new Set());
       // 清除錯誤狀態
