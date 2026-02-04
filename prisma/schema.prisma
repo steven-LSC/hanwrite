@@ -14,14 +14,15 @@ datasource db {
 }
 
 model User {
-  id               String         @id @default(uuid())
-  username         String         @unique
-  password         String
-  responseLanguage String         @default("繁體中文")
-  openaiModel      String         @default("gpt-4.1-mini")
-  mindmaps         Mindmap[]
-  writings         Writing[]
-  behaviors        UserBehavior[]
+  id                String            @id @default(uuid())
+  username          String            @unique
+  password          String
+  responseLanguage  String            @default("繁體中文")
+  openaiModel       String            @default("gpt-4.1-mini")
+  mindmaps          Mindmap[]
+  writings          Writing[]
+  behaviors         UserBehavior[]
+  writingProgresses WritingProgress[]
 
   @@map("User")
 }
@@ -40,14 +41,15 @@ model Mindmap {
 }
 
 model Writing {
-  id             String   @id @default(cuid())
-  title          String
-  content        String
-  characterCount Int
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                String            @id @default(cuid())
+  title             String
+  content           String
+  characterCount    Int
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  writingProgresses WritingProgress[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@map("Writing")
 }
@@ -61,4 +63,17 @@ model UserBehavior {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("UserBehavior")
+}
+
+model WritingProgress {
+  id             String   @id @default(uuid())
+  writingId      String
+  userId         String
+  timestamp      DateTime @default(now())
+  characterCount Int
+  type           String // "start", "idle", "interval" - start: 開始時, idle: 3秒沒動靜, interval: 30秒間隔
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  writing        Writing  @relation(fields: [writingId], references: [id], onDelete: Cascade)
+
+  @@map("WritingProgress")
 }

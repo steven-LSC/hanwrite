@@ -511,7 +511,7 @@ export async function POST(request: NextRequest) {
       `[Error Detection] 分析完成，找到 ${enhancedGrammarResults.length} 個文法錯誤和 ${vocabResults.length} 個單字錯誤，總計 ${sortedAllResults.length} 個錯誤，耗時: ${duration}ms`
     );
 
-    return NextResponse.json({ results: sortedAllResults });
+    return NextResponse.json({ results: sortedAllResults, duration });
   } catch (error) {
     console.error("Error Detection API error:", error);
 

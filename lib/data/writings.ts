@@ -162,7 +162,7 @@ export async function getRecentWritings(): Promise<RecentWriting[]> {
  */
 export async function getExpressionBuilderResults(
   inputText: string
-): Promise<ExpressionBuilderResult[]> {
+): Promise<{ results: ExpressionBuilderResult[]; duration?: number }> {
   const response = await fetch("/api/expression-builder", {
     method: "POST",
     headers: {
@@ -179,7 +179,7 @@ export async function getExpressionBuilderResults(
   }
 
   const data = await response.json();
-  return data.results || [];
+  return { results: data.results || [], duration: data.duration };
 }
 
 /**
@@ -252,7 +252,7 @@ export function splitContentIntoParagraphs(content: string): string[] {
  */
 export async function getReverseOutliningResults(
   paragraphs: string[]
-): Promise<ReverseOutliningResult> {
+): Promise<{ results: ReverseOutliningResult; duration?: number }> {
   const response = await fetch("/api/reverse-outlining", {
     method: "POST",
     headers: {
@@ -269,7 +269,7 @@ export async function getReverseOutliningResults(
   }
 
   const data = await response.json();
-  return data.results || [];
+  return { results: data.results || [], duration: data.duration };
 }
 
 /**
@@ -279,7 +279,7 @@ export async function getReverseOutliningResults(
 export async function getProficiencyReport(
   title: string,
   content: string
-): Promise<ProficiencyReport> {
+): Promise<{ results: ProficiencyReport; duration?: number }> {
   const response = await fetch("/api/proficiency-report", {
     method: "POST",
     headers: {
@@ -296,7 +296,7 @@ export async function getProficiencyReport(
   }
 
   const data = await response.json();
-  return data.results || [];
+  return { results: data.results || [], duration: data.duration };
 }
 
 /**
@@ -305,7 +305,7 @@ export async function getProficiencyReport(
  */
 export async function getErrorDetectionResults(
   content: string
-): Promise<Array<{ type: "grammar"; data: GrammarErrorInput } | { type: "vocab"; data: VocabErrorInput }>> {
+): Promise<{ results: Array<{ type: "grammar"; data: GrammarErrorInput } | { type: "vocab"; data: VocabErrorInput }>; duration?: number }> {
   const response = await fetch("/api/error-detection", {
     method: "POST",
     headers: {
@@ -323,7 +323,7 @@ export async function getErrorDetectionResults(
 
   const data = await response.json();
   // API 回傳的是不包含 errorPosition 的結果，前端需要計算位置
-  return data.results || [];
+  return { results: data.results || [], duration: data.duration };
 }
 
 /**

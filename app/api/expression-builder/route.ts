@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     const duration = Date.now() - startTime;
     console.log(`[Expression Builder] 分析完成，耗時: ${duration}ms`);
 
-    return NextResponse.json({ results });
+    return NextResponse.json({ results, duration });
   } catch (error) {
     console.error("Expression Builder API error:", error);
 

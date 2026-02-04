@@ -248,6 +248,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         isCorrect: true,
         userSentence: sentence,
+        duration,
       });
     }
 
@@ -266,6 +267,7 @@ export async function POST(request: NextRequest) {
       userSentence: sentence,
       detailedExplanation,
       correctiveExample,
+      duration,
     });
   } catch (error) {
     console.error("Grammar Practice API error:", error);

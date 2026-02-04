@@ -26,6 +26,7 @@ import {
 import { useFocus } from "@/app/(main)/focus-context";
 import { useEditor, EditorHighlightRef, EditorContentRef, ErrorPosition, EditorClickHandlerRef } from "@/app/(main)/editor-context";
 import { logBehavior } from "@/lib/log-behavior";
+import { useWritingProgress } from "@/lib/hooks/use-writing-progress";
 
 interface EditorProps {
   initialTitle?: string;
@@ -33,6 +34,7 @@ interface EditorProps {
   onSave?: (title: string, content: string) => Promise<void>;
   onTitleChange?: (title: string) => void;
   isLoading?: boolean;
+  writingId?: string;
 }
 
 export interface EditorRef {
@@ -49,10 +51,11 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       onSave,
       onTitleChange,
       isLoading = false,
+      writingId,
     },
     ref
   ) => {
-    const { isFocusMode, toggleFocus, checkAndSetWritingState } = useFocus();
+    const { isFocusMode, toggleFocus, checkAndSetWritingState, activityState } = useFocus();
     const { editorHighlightRef, editorContentRef, editorClickHandlerRef } = useEditor();
     const [title, setTitle] = useState(initialTitle);
     const [content, setContent] = useState(initialContent);
@@ -125,6 +128,13 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
     // 即時計算字數
     const characterCount = content.length;
+
+    // 使用 Writing Progress Hook 追蹤寫作進度
+    useWritingProgress({
+      writingId,
+      activityState,
+      characterCount,
+    });
 
     // Helper 函數：取得純文字內容（將 HTML 換行轉換回 \n）
     const getTextContent = (element: HTMLElement): string => {
@@ -622,6 +632,48 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       triggerSave: handleSave,
     }));
 
+    // 處理貼上事件（清除格式，只保留純文字）
+    const handlePaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
+      e.preventDefault();
+
+      const editor = editorRef.current;
+      if (!editor) return;
+
+      // 從剪貼簿取得純文字
+      const pastedText = e.clipboardData.getData('text/plain');
+
+      if (!pastedText) return;
+
+      // 取得當前選取範圍
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+
+      const range = selection.getRangeAt(0);
+
+      // 刪除選取的內容（如果有的話）
+      range.deleteContents();
+
+      // 插入純文字
+      const textNode = document.createTextNode(pastedText);
+      range.insertNode(textNode);
+
+      // 將游標移到插入文字的後面
+      range.setStartAfter(textNode);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      // 更新 content state
+      const newTextContent = getTextContent(editor);
+      if (newTextContent !== content) {
+        setContent(newTextContent);
+        // 當內容改變時，清除 highlight（因為位置可能已經改變）
+        if (highlightRef.current) {
+          clearHighlight();
+        }
+      }
+    };
+
     // 處理文字輸入
     const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
       const textContent = getTextContent(e.currentTarget);
@@ -632,8 +684,6 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         if (highlightRef.current) {
           clearHighlight();
         }
-        // 記錄寫作狀態
-        checkAndSetWritingState();
       }
     };
 
@@ -818,11 +868,12 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       }
 
       try {
-        const fetchedHints = await getExpansionHints(selectedText);
+        const { hints: fetchedHints, duration } = await getExpansionHints(selectedText);
         setHints(fetchedHints);
         // 收到結果後記錄
         logBehavior("expansion-hint-generate", {
           hints: fetchedHints,
+          duration,
         });
       } catch (error) {
         // 處理 API 錯誤
@@ -863,6 +914,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         logBehavior("paraphrase-generate", {
           originalText: result.originalText,
           changes: result.changes,
+          duration: result.duration,
         });
       } catch (error) {
         // 處理 API 錯誤
@@ -921,9 +973,14 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         selectedContent = before + change.revised + after;
       });
 
-      // 記錄最終插入的句子（可編輯的）
+      // 記錄最終插入的句子和選擇的修改項目
       logBehavior("paraphrase-apply", {
         finalSentence: selectedContent,
+        appliedChanges: changesToApply.map((change) => ({
+          original: change.original,
+          revised: change.revised,
+          explanation: change.explanation,
+        })),
       });
 
       // 替換編輯器中的文字
@@ -1019,12 +1076,11 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
             <input
               type="text"
               value={title}
+              onClick={checkAndSetWritingState}
               onChange={(e) => {
                 const newTitle = e.target.value;
                 setTitle(newTitle);
                 onTitleChange?.(newTitle);
-                // 記錄寫作狀態
-                checkAndSetWritingState();
               }}
               placeholder="Title"
               spellCheck={false}
@@ -1061,6 +1117,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
                 contentEditable
                 spellCheck={false}
                 onInput={handleInput}
+                onPaste={handlePaste}
                 onClick={checkAndSetWritingState}
                 onMouseUp={handleMouseUp}
                 suppressContentEditableWarning

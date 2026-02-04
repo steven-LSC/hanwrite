@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { LANGUAGE_OPTIONS } from "@/lib/ai-config";
+import { logBehavior } from "@/lib/log-behavior";
+import { useFocus } from "@/app/(main)/focus-context";
 
 interface UserMenuProps {
   currentLanguage: string;
@@ -18,7 +20,17 @@ export function UserMenu({
   isOpen,
   onClose,
 }: UserMenuProps) {
+  const { setActivityState } = useFocus();
   const [languageSubmenuOpen, setLanguageSubmenuOpen] = useState(false);
+  const [isSessionActive, setIsSessionActive] = useState(false);
+
+  // 在組件掛載時讀取 session 狀態
+  useEffect(() => {
+    const savedSession = localStorage.getItem("hanwrite-session-active");
+    if (savedSession === "true") {
+      setIsSessionActive(true);
+    }
+  }, []);
 
   const handleLanguageSelect = (language: string) => {
     onLanguageChange(language);
@@ -27,6 +39,24 @@ export function UserMenu({
   const handleLogout = () => {
     onLogout();
     onClose();
+  };
+
+  const handleSessionToggle = async () => {
+    const newSessionState = !isSessionActive;
+    setIsSessionActive(newSessionState);
+
+    // 儲存狀態到 localStorage 供 logBehavior 使用
+    localStorage.setItem("hanwrite-session-active", newSessionState ? "true" : "false");
+
+    // 觸發自訂事件通知其他組件 session 狀態已改變
+    window.dispatchEvent(new Event("session-status-change"));
+
+    // 如果是開啟 Session，重置活動狀態為 null
+    if (newSessionState) {
+      setActivityState(null);
+    }
+
+    await logBehavior(newSessionState ? "session-start" : "session-end");
   };
 
   return (
@@ -68,6 +98,27 @@ export function UserMenu({
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Session Start/End Switch */}
+          <div className="border-t border-(--color-border)">
+            <div className="flex items-center justify-between px-[15px] py-[10px]">
+              <span className="text-[14px] font-medium text-(--color-text-secondary)">
+                Session
+              </span>
+              <button
+                onClick={handleSessionToggle}
+                className={`relative inline-flex h-[20px] w-[36px] items-center rounded-full transition-colors duration-200 ${isSessionActive ? "bg-blue-500" : "bg-gray-300"
+                  }`}
+                role="switch"
+                aria-checked={isSessionActive}
+              >
+                <span
+                  className={`inline-block h-[16px] w-[16px] transform rounded-full bg-white transition-transform duration-200 ${isSessionActive ? "translate-x-[18px]" : "translate-x-[2px]"
+                    }`}
+                />
+              </button>
+            </div>
           </div>
 
           {/* Logout */}

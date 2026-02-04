@@ -15,9 +15,6 @@ import { ReverseOutlining, ReverseOutliningHandle } from "./reverse-outlining";
 import { Usage } from "./usage";
 import { Button } from "../ui/button";
 import {
-  ReverseOutliningResult,
-  ExpressionBuilderResult,
-  ErrorDetectionResult,
   ToolState,
 } from "@/lib/types";
 import { logBehavior } from "@/lib/log-behavior";
@@ -70,6 +67,8 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
   const [currentWritingId, setCurrentWritingId] = useState<string | undefined>(
     undefined
   );
+  // 追蹤 session 狀態
+  const [isSessionActive, setIsSessionActive] = useState(false);
   // Reverse Outlining 的 ref
   const reverseOutliningRef = useRef<ReverseOutliningHandle>(null);
   // Reference Panel 的 ref
@@ -83,6 +82,44 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
   useImperativeHandle(ref, () => ({
     getToolState: () => toolState,
   }));
+
+  // 檢查並監聽 session 狀態
+  useEffect(() => {
+    // 初始讀取 session 狀態
+    const checkSessionStatus = () => {
+      if (typeof window !== "undefined") {
+        const sessionActive = localStorage.getItem("hanwrite-session-active") === "true";
+        setIsSessionActive(sessionActive);
+      }
+    };
+
+    checkSessionStatus();
+
+    // 監聽 localStorage 變化（跨標籤頁）
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "hanwrite-session-active") {
+        setIsSessionActive(e.newValue === "true");
+      }
+    };
+
+    // 監聽同標籤頁的 localStorage 變化
+    const handleCustomStorageChange = () => {
+      checkSessionStatus();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    // 使用自訂事件來監聽同標籤頁的變化
+    window.addEventListener("session-status-change", handleCustomStorageChange);
+
+    // 定期檢查 session 狀態（作為備援機制）
+    const intervalId = setInterval(checkSessionStatus, 1000);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("session-status-change", handleCustomStorageChange);
+      clearInterval(intervalId);
+    };
+  }, []);
 
   // 當 writingId 改變時，清空所有工具狀態並重置為預設工具
   useEffect(() => {
@@ -98,6 +135,16 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
       setCurrentWritingId(writingId);
     }
   }, [writingId, currentWritingId]);
+
+  // 當 session start 時，如果當前工具是 usage，切換到 reference-panel
+  useEffect(() => {
+    if (isSessionActive && toolState.currentTool === "usage") {
+      setToolState((prev) => ({
+        ...prev,
+        currentTool: "reference-panel",
+      }));
+    }
+  }, [isSessionActive]);
 
   const currentTool = toolState.currentTool;
 
@@ -332,7 +379,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
     setActivityState("tool-using");
   };
 
-  // 工具選項資料結構
+  // 工具選項資料結構（根據 session 狀態過濾 usage）
   const toolOptions = [
     {
       category: "Writing Support",
@@ -367,14 +414,19 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
     {
       category: "Other",
       tools: [
-        {
-          id: "usage" as ToolType,
-          icon: "finance",
-          title: "Usage",
-        },
+        // session start 時隱藏 usage 選項
+        ...(isSessionActive
+          ? []
+          : [
+            {
+              id: "usage" as ToolType,
+              icon: "finance",
+              title: "Usage",
+            },
+          ]),
       ],
     },
-  ];
+  ].filter((group) => group.tools.length > 0); // 過濾掉空的類別
 
   return (
     <div className="w-[498px] h-[95%] my-auto flex flex-col">

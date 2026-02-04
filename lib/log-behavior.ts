@@ -7,6 +7,15 @@
  */
 export async function logBehavior(actionName: string, resultData?: any): Promise<void> {
   try {
+    // 檢查 Session 是否處於啟動狀態
+    // session-start 和 session-end 本身不需要檢查，否則無法記錄這兩個行為
+    if (actionName !== "session-start" && actionName !== "session-end") {
+      const isSessionActive = localStorage.getItem("hanwrite-session-active") === "true";
+      if (!isSessionActive) {
+        return; // Session 未啟動，不進行行為紀錄
+      }
+    }
+
     // 從 cookie 讀取 userId
     const cookies = document.cookie.split("; ");
     const authCookie = cookies.find((c) => c.startsWith("auth-user="));

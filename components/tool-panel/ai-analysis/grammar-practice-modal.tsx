@@ -35,7 +35,10 @@ export function GrammarPracticeModal({
       const result = await checkGrammarPractice(sentence, grammarName, explanation);
       setCheckResult(result);
       // 收到結果後記錄
-      logBehavior("grammar-practice-check", result);
+      logBehavior("grammar-practice-check", {
+        ...result,
+        duration: result.duration,
+      });
     } catch (error) {
       console.error("Failed to check grammar practice:", error);
     } finally {

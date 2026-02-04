@@ -11,7 +11,7 @@ export async function checkGrammarPractice(
   sentence: string,
   grammarName: string,
   explanation: string
-): Promise<GrammarPracticeResult> {
+): Promise<GrammarPracticeResult & { duration?: number }> {
   const response = await fetch("/api/grammar-practice", {
     method: "POST",
     headers: {

@@ -78,6 +78,7 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
   const [userName, setUserName] = useState<string>("");
   const [userAccount, setUserAccount] = useState<string>("");
   const [currentLanguage, setCurrentLanguage] = useState<string>("繁體中文");
+  const [isSessionActive, setIsSessionActive] = useState<boolean>(false);
   const prevWritingIdRef = useRef<string | undefined>(undefined);
 
   // 從 pathname 提取當前選中的 writingId
@@ -149,6 +150,44 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
         setUserAccount("");
       }
     }
+  }, []);
+
+  // 檢查並監聽 session 狀態
+  useEffect(() => {
+    // 初始讀取 session 狀態
+    const checkSessionStatus = () => {
+      if (typeof window !== "undefined") {
+        const sessionActive = localStorage.getItem("hanwrite-session-active") === "true";
+        setIsSessionActive(sessionActive);
+      }
+    };
+
+    checkSessionStatus();
+
+    // 監聽 localStorage 變化（跨標籤頁）
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "hanwrite-session-active") {
+        setIsSessionActive(e.newValue === "true");
+      }
+    };
+
+    // 監聽同標籤頁的 localStorage 變化
+    const handleCustomStorageChange = () => {
+      checkSessionStatus();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    // 使用自訂事件來監聽同標籤頁的變化
+    window.addEventListener("session-status-change", handleCustomStorageChange);
+
+    // 定期檢查 session 狀態（作為備援機制）
+    const intervalId = setInterval(checkSessionStatus, 1000);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("session-status-change", handleCustomStorageChange);
+      clearInterval(intervalId);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -249,6 +288,11 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
           >
             <button
               onClick={async () => {
+                // 如果 session 已啟動，阻止創建新文章
+                if (isSessionActive) {
+                  return;
+                }
+
                 if (pathname !== "/writings/new") {
                   const shouldNavigate = await showWarning();
                   if (shouldNavigate) {
@@ -256,10 +300,15 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                   }
                 }
               }}
-              className={`flex items-center rounded-[10px] text-(--color-text-secondary) hover:bg-slate-100 transition-colors duration-200 cursor-pointer ${isFocusMode
-                ? "justify-center p-[5px]"
-                : "gap-[5px] px-[10px] py-[5px]"
+              disabled={isSessionActive}
+              className={`flex items-center rounded-[10px] transition-colors duration-200 ${isSessionActive
+                ? "text-(--color-text-tertiary) cursor-not-allowed opacity-50"
+                : "text-(--color-text-secondary) hover:bg-slate-100 cursor-pointer"
+                } ${isFocusMode
+                  ? "justify-center p-[5px]"
+                  : "gap-[5px] px-[10px] py-[5px]"
                 }`}
+              title={isSessionActive ? "Session 進行中時無法創建新文章" : ""}
             >
               <span className="material-symbols-rounded text-[20px]">
                 edit_square

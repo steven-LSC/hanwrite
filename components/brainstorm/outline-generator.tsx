@@ -48,7 +48,10 @@ export function OutlineGenerator({
       const generated = await generateOutline(title, nodes);
       setOutline(generated);
       // 收到結果後記錄
-      logBehavior("outline-generator-generate", generated);
+      logBehavior("outline-generator-generate", {
+        ...generated,
+        duration: generated.duration,
+      });
     } catch (error) {
       console.error("Failed to generate outline:", error);
     } finally {
@@ -62,7 +65,10 @@ export function OutlineGenerator({
       const generated = await generateOutline(title, nodes);
       setOutline(generated);
       // 收到結果後記錄
-      logBehavior("outline-generator-generate", generated);
+      logBehavior("outline-generator-generate", {
+        ...generated,
+        duration: generated.duration,
+      });
     } catch (error) {
       console.error("Failed to regenerate outline:", error);
     } finally {

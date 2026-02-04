@@ -117,7 +117,7 @@ export default function WritingPage() {
       // 如果是空的新文章，直接允許導航
       const currentWritingId = params.writingId as string;
       const currentIsNewWriting = currentWritingId === "new";
-      
+
       if (currentIsNewWriting && editorRef.current) {
         const title = editorRef.current.getTitle().trim();
         const content = editorRef.current.getContent().trim();
@@ -211,6 +211,7 @@ export default function WritingPage() {
         onSave={handleSave}
         onTitleChange={handleTitleChange}
         isLoading={isEditorLoading}
+        writingId={writingId}
       />
       <UnsavedChangesModal
         isOpen={showUnsavedModal}

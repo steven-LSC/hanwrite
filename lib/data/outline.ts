@@ -8,7 +8,7 @@ import { OutlineData } from "@/lib/types";
 export async function generateOutline(
   title: string,
   nodes: Node[]
-): Promise<OutlineData> {
+): Promise<OutlineData & { duration?: number }> {
   const response = await fetch("/api/outline-generator", {
     method: "POST",
     headers: {
@@ -28,9 +28,10 @@ export async function generateOutline(
   const sections = data.sections || [];
 
   // 將 sections 轉換為 OutlineData
-  const outlineData: OutlineData = {
+  const outlineData: OutlineData & { duration?: number } = {
     title,
     sections: sections,
+    duration: data.duration,
   };
 
   return outlineData;

@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
     const duration = Date.now() - startTime;
     console.log(`[Paraphrase] 改寫完成，耗時: ${duration}ms`);
 
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, duration });
   } catch (error) {
     console.error("Paraphrase API error:", error);
 

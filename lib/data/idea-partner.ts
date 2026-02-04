@@ -14,7 +14,7 @@ export interface IdeaPartnerCard {
 export async function getIdeaPartnerCards(
   nodes: Node[],
   title?: string
-): Promise<IdeaPartnerCard[]> {
+): Promise<{ cards: IdeaPartnerCard[]; duration?: number }> {
   try {
     const response = await fetch("/api/idea-partner", {
       method: "POST",
@@ -36,12 +36,14 @@ export async function getIdeaPartnerCards(
     const cards = data.cards || [];
 
     // 將 API 回傳的格式轉換成 IdeaPartnerCard 格式（加上 idea 欄位）
-    return cards.map((card: { nodeId: string; title: string; description: string }) => ({
+    const transformedCards = cards.map((card: { nodeId: string; title: string; description: string }) => ({
       nodeId: card.nodeId,
       title: card.title,
       description: card.description,
       idea: "", // 使用者輸入，初始為空字串
     }));
+
+    return { cards: transformedCards, duration: data.duration };
   } catch (error) {
     console.error("Failed to fetch idea partner cards:", error);
     throw error;

@@ -60,11 +60,11 @@ export const ProficiencyReportComponent = forwardRef<
       const writing = await getWriting(writingId);
 
       // 將文章標題和內容傳遞給 getProficiencyReport
-      const reportData = await getProficiencyReport(writing.title, writing.content);
+      const { results: reportData, duration } = await getProficiencyReport(writing.title, writing.content);
       setReport(reportData);
       onResultsChange(reportData);
       // 收到結果後記錄
-      logBehavior("proficiency-report-generate", reportData);
+      logBehavior("proficiency-report-generate", { results: reportData, duration });
     } catch (error) {
       console.error("Failed to generate proficiency report:", error);
       alert("Failed to generate proficiency report. Please try again.");
@@ -113,7 +113,7 @@ export const ProficiencyReportComponent = forwardRef<
         </div>
 
         {/* 內容區域 */}
-        <div className="flex-1 overflow-y-auto flex flex-col gap-[20px]">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-[20px] scrollbar-hide">
           {isGenerating ? (
             <Loading text="Generating report..." />
           ) : !report ? (

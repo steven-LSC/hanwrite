@@ -248,7 +248,7 @@ export const ReferencePanel = forwardRef<
           {/* 第二列：選擇欄位和預覽 */}
           <div className="flex-1 overflow-hidden flex min-h-0 gap-[20px]">
             {/* 左側：心智圖列表 */}
-            <div className="w-[250px] border border-(--color-border) rounded-[10px] overflow-y-auto shrink-0 p-[20px]">
+            <div className="w-[250px] border border-(--color-border) rounded-[10px] overflow-y-auto shrink-0 p-[20px] scrollbar-hide">
               {isLoadingMindmaps ? (
                 <p className="text-[14px] text-(--color-text-tertiary)">
                   Loading...

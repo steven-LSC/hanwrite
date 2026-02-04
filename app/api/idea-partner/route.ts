@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     const duration = Date.now() - startTime;
     console.log(`[Idea Partner] 生成完成，耗時: ${duration}ms`);
 
-    return NextResponse.json({ cards });
+    return NextResponse.json({ cards, duration });
   } catch (error) {
     console.error("Idea Partner API error:", error);
 

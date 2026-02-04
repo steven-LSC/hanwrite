@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     const duration = Date.now() - startTime;
     console.log(`[Expansion Hint] 擴展建議生成完成，耗時: ${duration}ms`);
 
-    return NextResponse.json({ hints });
+    return NextResponse.json({ hints, duration });
   } catch (error) {
     console.error("Expansion Hint API error:", error);
 

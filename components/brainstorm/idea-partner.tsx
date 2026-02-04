@@ -38,7 +38,7 @@ export function IdeaPartner({
     if (hasScanned && nodes.length > 0 && cards.length === 0) {
       setIsLoading(true);
       getIdeaPartnerCards(nodes)
-        .then((fetchedCards) => {
+        .then(({ cards: fetchedCards, duration }) => {
           setCards(fetchedCards);
           // 初始化 ideaInputs
           const initial: Record<string, string> = {};
@@ -49,6 +49,7 @@ export function IdeaPartner({
           // 掃描完成後記錄結果
           logBehavior("idea-partner-scan", {
             cards: fetchedCards,
+            duration,
           });
         })
         .catch((error) => {
@@ -80,7 +81,7 @@ export function IdeaPartner({
       setSelectedCardNodeId(null);
       // 重新 fetch 卡片資料
       if (nodes.length > 0) {
-        const fetchedCards = await getIdeaPartnerCards(nodes);
+        const { cards: fetchedCards } = await getIdeaPartnerCards(nodes);
         setCards(fetchedCards);
         const initial: Record<string, string> = {};
         fetchedCards.forEach((card) => {

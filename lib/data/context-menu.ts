@@ -8,7 +8,7 @@ import {
  */
 export async function getExpansionHints(
   selectedText: string
-): Promise<ExpansionHint[]> {
+): Promise<{ hints: ExpansionHint[]; duration?: number }> {
   try {
     const response = await fetch("/api/expansion-hint", {
       method: "POST",
@@ -30,8 +30,8 @@ export async function getExpansionHints(
       throw error;
     }
 
-    const result: { hints: ExpansionHint[] } = await response.json();
-    return result.hints;
+    const result: { hints: ExpansionHint[]; duration?: number } = await response.json();
+    return { hints: result.hints, duration: result.duration };
   } catch (error) {
     // 只有非驗證錯誤才記錄到 console
     if (!(error as any).isValidationError) {
@@ -46,7 +46,7 @@ export async function getExpansionHints(
  */
 export async function getParaphraseResult(
   selectedText: string
-): Promise<ParaphraseResult> {
+): Promise<ParaphraseResult & { duration?: number }> {
   try {
     const response = await fetch("/api/paraphrase", {
       method: "POST",
@@ -68,7 +68,7 @@ export async function getParaphraseResult(
       throw error;
     }
 
-    const result: ParaphraseResult = await response.json();
+    const result: ParaphraseResult & { duration?: number } = await response.json();
     return result;
   } catch (error) {
     // 只有非驗證錯誤才記錄到 console

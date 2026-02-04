@@ -397,7 +397,7 @@ export const ErrorDetectionCorrection = forwardRef<
       }
 
       // 取得分析結果（不包含位置）
-      const analysisResultsWithoutPosition = await getErrorDetectionResults(content);
+      const { results: analysisResultsWithoutPosition, duration } = await getErrorDetectionResults(content);
 
       // 計算錯誤位置
       const analysisResults = calculateErrorPositions(analysisResultsWithoutPosition, content);
@@ -423,6 +423,7 @@ export const ErrorDetectionCorrection = forwardRef<
         content,
         title,
         results: analysisResultsWithoutPosition,
+        duration,
       });
 
       // 如果是第一次分析（沒有 results），預設打開 showAll
@@ -802,7 +803,7 @@ export const ErrorDetectionCorrection = forwardRef<
 
   // 顯示結果卡片
   return (
-    <div className="flex flex-col h-full overflow-y-auto px-[20px] py-[20px] gap-[10px]">
+    <div className="flex flex-col h-full overflow-y-auto px-[20px] py-[20px] gap-[10px] scrollbar-hide">
       {/* Show All 按鈕 */}
       <div className="shrink-0">
         <Button

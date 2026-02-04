@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     const duration = Date.now() - startTime;
     console.log(`[Outline Generator] 生成完成，耗時: ${duration}ms`);
 
-    return NextResponse.json({ sections });
+    return NextResponse.json({ sections, duration });
   } catch (error) {
     console.error("Outline Generator API error:", error);
 

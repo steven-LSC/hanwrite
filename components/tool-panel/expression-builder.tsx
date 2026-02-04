@@ -78,9 +78,9 @@ export const ExpressionBuilder = forwardRef<ExpressionBuilderHandle, ExpressionB
         return;
       }
 
-      const analysisResults = await getExpressionBuilderResults(inputText);
+      const { results: analysisResults, duration } = await getExpressionBuilderResults(inputText);
       // 收到結果後記錄
-      logBehavior("expression-builder-analyze", analysisResults);
+      logBehavior("expression-builder-analyze", { results: analysisResults, duration });
       // 只有在元件還掛載時才更新本地狀態
       if (isMountedRef.current) {
         setResults(analysisResults);

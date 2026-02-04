@@ -68,13 +68,13 @@ export const ReverseOutlining = forwardRef<
       }
 
       // 取得分析結果
-      const analysisResults = await getReverseOutliningResults(paragraphs);
+      const { results: analysisResults, duration } = await getReverseOutliningResults(paragraphs);
 
       setResults(analysisResults);
       // 通知父元件更新狀態
       onResultsChange(analysisResults);
       // 收到結果後記錄
-      logBehavior("reverse-outlining-generate", analysisResults);
+      logBehavior("reverse-outlining-generate", { results: analysisResults, duration });
       // 重置展開狀態，預設都不展開
       setExpandedCards(new Set());
       // 清除錯誤狀態
@@ -140,7 +140,7 @@ export const ReverseOutlining = forwardRef<
 
   // 顯示結果卡片
   return (
-    <div className="flex flex-col h-full overflow-y-auto px-[20px] py-[20px] gap-[10px]">
+    <div className="flex flex-col h-full overflow-y-auto px-[20px] py-[20px] gap-[10px] scrollbar-hide">
       {results.map((item, index) => {
         const isExpanded = expandedCards.has(index);
         return (

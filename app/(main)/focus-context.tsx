@@ -48,6 +48,11 @@ export function FocusProvider({ children }: { children: ReactNode }) {
     }
     // 記錄行為
     logBehavior(isFocusMode ? "focus-mode-on" : "focus-mode-off");
+
+    // 當開啟 Focus 模式時，如果尚未處於寫作狀態，自動發送寫作狀態紀錄
+    if (isFocusMode) {
+      checkAndSetWritingState();
+    }
   }, [isFocusMode]);
 
   const toggleFocus = () => {
