@@ -18,7 +18,7 @@ export type ExpressionBuilderResult =
     }
   | {
       type: "connective";
-      content: Array<string>;
+      content: Array<{ vocab: string; translate: string }>;
     };
 
 // 最近的文章（用於 Sidebar）

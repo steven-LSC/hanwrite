@@ -169,8 +169,8 @@ ExpressionBuilder.displayName = "ExpressionBuilder";
 function ResultBlock({ result }: { result: ExpressionBuilderResult }) {
   // vocab+grammar+example 合併卡片
   if (result.type === "vocab-grammar-example") {
-    // 判斷是否為單字輸入（grammar 為空時只顯示 vocab）
-    const isSingleWord = !result.grammar.grammar || result.grammar.grammar.trim() === "";
+    // 判斷是否有文法（grammar 為空時不顯示 Grammar 和 Example Sentence）
+    const hasGrammar = result.grammar.grammar && result.grammar.grammar.trim() !== "";
 
     return (
       <div className="bg-white border border-(--color-border) rounded-[10px] p-[20px] flex flex-col gap-[20px]">
@@ -205,8 +205,8 @@ function ResultBlock({ result }: { result: ExpressionBuilderResult }) {
           </div>
         </div>
 
-        {/* Grammar 區塊（僅在非單字時顯示） */}
-        {!isSingleWord && (
+        {/* Grammar 區塊（僅在有文法時顯示） */}
+        {hasGrammar && (
           <div className="flex flex-col gap-[10px]">
             <div className="flex items-center gap-[5px]">
               <div
@@ -231,8 +231,8 @@ function ResultBlock({ result }: { result: ExpressionBuilderResult }) {
           </div>
         )}
 
-        {/* Example Sentence 區塊（僅在非單字時顯示） */}
-        {!isSingleWord && (
+        {/* Example Sentence 區塊（僅在有文法時顯示） */}
+        {hasGrammar && result.example && result.example.trim() !== "" && (
           <div className="flex flex-col gap-[10px]">
             <div className="flex items-center gap-[5px]">
               <div
@@ -274,10 +274,23 @@ function ResultBlock({ result }: { result: ExpressionBuilderResult }) {
             Connective
           </span>
         </div>
-        <div className="bg-(--color-bg-secondary) px-[10px] py-[5px] rounded-[5px]">
-          <span className="font-medium text-[14px] text-(--color-text-secondary)">
-            {result.content.join(", ")}
-          </span>
+        <div className="flex flex-col gap-[5px]">
+          {result.content.map((item, idx) => (
+            <div
+              key={idx}
+              className="bg-(--color-bg-secondary) px-[10px] py-[5px] rounded-[5px] flex items-center gap-[5px]"
+            >
+              <span className="font-medium text-[14px] text-(--color-text-secondary)">
+                {item.vocab}
+              </span>
+              <span className="font-medium text-[14px] text-(--color-text-secondary)">
+                →
+              </span>
+              <span className="font-medium text-[14px] text-(--color-text-secondary)">
+                {item.translate}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     );

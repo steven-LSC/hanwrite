@@ -13,7 +13,7 @@ const getUserId = async (): Promise<string | null> => {
 const FEATURE_ACTION_MAP: Record<string, string[]> = {
   "expansion-hints": [
     "expansion-hint-generate",
-    "expansion-hint-insert",
+    "expansion-hint-try",
     "expansion-hint-discard",
   ],
   "idea-partner": [

@@ -36,6 +36,7 @@ export interface FeatureStats {
   applied?: number;
   skipped?: number;
   inserted?: number;
+  tried?: number;
   discarded?: number;
   opened?: number;
   find?: number;
@@ -58,6 +59,7 @@ export interface FeatureCardConfig {
     applied?: string;
     skipped?: string;
     inserted?: string;
+    tried?: string;
     discarded?: string;
     opened?: string;
     find?: string;
@@ -102,7 +104,7 @@ export const FEATURE_CARDS: FeatureCardConfig[] = [
     title: "Expansion Hints",
     actionNames: {
       timesUsed: "expansion-hint-generate",
-      inserted: "expansion-hint-insert",
+      tried: "expansion-hint-try",
       discarded: "expansion-hint-discard",
     },
   },
@@ -164,6 +166,9 @@ export function calculateFeatureStats(
   }
   if (config.actionNames.inserted) {
     result.inserted = stats[config.actionNames.inserted] || 0;
+  }
+  if (config.actionNames.tried) {
+    result.tried = stats[config.actionNames.tried] || 0;
   }
   if (config.actionNames.discarded) {
     result.discarded = stats[config.actionNames.discarded] || 0;

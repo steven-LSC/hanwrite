@@ -34,7 +34,7 @@ export function getResponseLanguage(cookieValue: string): string {
  */
 export interface AIConfig {
   model: string;
-  temperature: number;
+  temperature?: number;
   systemPrompt: (responseLanguage: string) => string;
 }
 
@@ -324,11 +324,11 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 
   "expansion-hint": {
     model: "gpt-4.1-mini",
-    temperature: 0.7,
+    temperature: 1,
     systemPrompt: (responseLanguage: string) => `你是一個韓文寫作助手，專門為學習者提供文章擴展建議。
 
 **任務：**
-根據使用者選取的韓文句子/段落，提供三個擴展建議，每個建議包含說明和一個韓文例句。
+根據使用者選取的韓文句子/段落，提供三個擴展建議，每個建議包含說明和一個例句（使用 ${responseLanguage}，參考他已經寫的內容）。
 
 **目標：**
 幫助學習者思考如何擴展文章內容，提供具體且實用的寫作方向。
@@ -339,7 +339,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
   "hints": [
     {
       "explanation": "擴展建議說明（使用 ${responseLanguage}）",
-      "example": "韓文例句（必須是完整的句子，以句號結尾）"
+      "example": "例句（使用 ${responseLanguage}，參考他已經寫的內容）"
     }
   ]
 }
@@ -347,7 +347,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 **重要規則：**
 1. 必須提供恰好三個擴展建議（hints 陣列必須包含三個元素）
 2. 每個建議的 explanation 必須使用 ${responseLanguage}
-3. 每個建議的 example 必須是完整的韓文句子，以句號結尾
+3. 每個建議的 example 必須是完整的句子，以句號結尾，使用 ${responseLanguage}，參考他已經寫的內容
 4. 擴展建議應該：
    - 根據選取的句子/段落提供建議
    - 提供具體的寫作方向（例如：反思、比較、延伸、情感表達等）
@@ -361,15 +361,15 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
   "hints": [
     {
       "explanation": "${responseLanguage}的建議說明",
-      "example": "(韓文例句)"
+      "example": "(例句，使用 ${responseLanguage}，參考他已經寫的內容)"
     },
     {
       "explanation": "${responseLanguage}的建議說明",
-      "example": "(韓文例句)"
+      "example": "(例句，使用 ${responseLanguage}，參考他已經寫的內容)"
     },
     {
       "explanation": "${responseLanguage}的建議說明",
-      "example": "(韓文例句)"
+      "example": "(例句，使用 ${responseLanguage}，參考他已經寫的內容)"
     }
   ]
 }
@@ -427,8 +427,8 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
   },
 
   "expression-builder": {
-    model: "gpt-4.1-mini",
-    temperature: 0.3,
+    model: "gpt-5.2",
+    // temperature: 0.1,
     systemPrompt: (responseLanguage: string) => `你是一個韓文學習助手，專門分析韓文句子並提供結構化的學習內容。
 
 **重要：這是一個學習工具**
@@ -443,10 +443,14 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
      - 只需要回傳 vocab 陣列，包含該單字及其翻譯
    - 如果輸入是完整句子，則按照子句結構分析
 
-2. **子句結構分析**：仔細分析句子的子句結構
-   - 如果句子有 N 個子句，就需要回傳 N 張 "vocab-grammar-example" 卡片
+2. **子句結構分析**：先理解使用者想要表達的意思，然後根據「打算翻譯出的自然韓文句子」來分析子句結構
+   - **重要流程**：
+     ① 先理解使用者輸入的語意和想要表達的意思
+     ② 將語意轉換成自然的韓文表達（參考下方的「翻譯原則」）
+     ③ 根據翻譯後的韓文句子來分析子句結構，而不是根據原本輸入的分句
+   - 如果翻譯後的韓文句子有 N 個子句，就需要回傳 N 張 "vocab-grammar-example" 卡片
    - 每張卡片對應一個子句，包含該子句的詞彙、文法和範例句子
-   - 如果子句之間有連接詞，需要在適當位置插入 "connective" 卡片
+   - 如果子句之間有連接詞，需要在適當位置插入 "connective" 卡片，不需要的話，就不要加入卡片，並且如果只有一個子句，就不需要加入卡片。
 
 3. **卡片順序**：
    - 按照句子中出現的順序排列卡片
@@ -460,6 +464,8 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 
 1. **vocab-grammar-example** 類型（合併卡片）：
    - 包含該子句的重要詞彙、主要文法點和範例句子
+   - **重要：如果該子句不需要文法（例如只是簡單的詞彙組合，沒有特殊的文法結構），則 grammar 和 example 欄位都應為空字串，不要硬加文法**
+   - 確保單字跟文法裡面沒有重複的表達
    - 格式：
      {
        "type": "vocab-grammar-example",
@@ -467,18 +473,24 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
          {"vocab": "韓文單字", "translate": "${responseLanguage}翻譯"}
        ],
        "grammar": {
-         "grammar": "文法名稱",
-         "explanation": "${responseLanguage}解釋"
+         "grammar": "文法名稱（如果不需要文法則為空字串）",
+         "explanation": "${responseLanguage}簡短的解釋（如果不需要文法則為空字串）"
        },
-       "example": "範例句子（韓文）"
+       "example": "範例句子（韓文，如果不需要文法則為空字串）"
      }
 
 2. **connective** 類型（連接詞卡片）：
    - 包含連接子句的連接詞或連接語
+   - **只生成一個連結詞就好**，不要生成多個
+   - 如果只有一個子句，就不需要加入卡片。
+   - 如果不需要連接詞，就不要硬加入卡片。
+   - 如果前面的子句的文法已經包含了連接屬性，就不需要再加入連接詞，例如：후에, 하고, 또는, 뿐만 아니라, 더욱 등等。
    - 格式：
      {
        "type": "connective",
-       "content": ["連接詞1", "連接詞2"]
+       "content": [
+         {"vocab": "連接詞（韓文）", "translate": "${responseLanguage}翻譯"}
+       ]
      }
 
 **翻譯原則（重要）：**
@@ -536,7 +548,9 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
     },
     {
       "type": "connective",
-      "content": ["그리고"]
+      "content": [
+        {"vocab": "그리고", "translate": "and"}
+      ]
     },
     {
       "type": "vocab-grammar-example",
@@ -650,7 +664,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 
   "grammar-practice-translation-question": {
     model: "gpt-4.1-mini",
-    temperature: 0.3,
+    temperature: 1,
     systemPrompt: (responseLanguage: string) => `你是一個韓語文法教學助手。請根據文法錯誤資訊，生成一個需要翻譯的句子。
 
 **任務：**

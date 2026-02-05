@@ -55,7 +55,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     },
     ref
   ) => {
-    const { isFocusMode, toggleFocus, checkAndSetWritingState, activityState } = useFocus();
+    const { isFocusMode, toggleFocus, checkAndSetWritingState, activityState, toolPanelRef } = useFocus();
     const { editorHighlightRef, editorContentRef, editorClickHandlerRef } = useEditor();
     const [title, setTitle] = useState(initialTitle);
     const [content, setContent] = useState(initialContent);
@@ -1014,6 +1014,12 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       setShowContextMenu(false);
     };
 
+    // 關閉 Paraphrase 錯誤面板（不記錄行為）
+    const handleCloseParaphraseError = () => {
+      setIsParaphraseNoChange(false);
+      setShowContextMenu(false);
+    };
+
     // 套用 Paraphrase 修改到編輯器
     const handleReplaceParaphrase = (enabledChanges: Set<number>) => {
       if (!paraphraseResult || !editorRef.current) return;
@@ -1084,6 +1090,11 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       setShowContextMenu(false);
     };
 
+    // 關閉 Expansion Hint 錯誤面板（不記錄行為）
+    const handleCloseExpansionHintError = () => {
+      setShowContextMenu(false);
+    };
+
     // 選擇 Hint（保持反白）
     const handleSelectHint = (index: number) => {
       setSelectedHintIndex(index);
@@ -1095,42 +1106,26 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       }
     };
 
-    // 插入選中的 Hint
+    // 切換到 Expression Builder 並設置選中的 Hint example
     const handleInsertHint = () => {
-      if (selectedHintIndex === null || !editorRef.current) return;
+      if (selectedHintIndex === null) return;
 
       const selectedHint = hints[selectedHintIndex];
-      // 移除換行符號，只保留單行文字，並在前面加一個空格
+      // 移除換行符號，只保留單行文字
       const cleanExample = selectedHint.example.replace(/\n/g, " ").trim();
-      const textToInsert = " " + cleanExample;
 
-      // 記錄插入的 hint（只記錄 insertedHint）
-      logBehavior("expansion-hint-insert", {
-        insertedHint: selectedHint,
+      // 記錄行為
+      logBehavior("expansion-hint-try", {
+        selectedHint: selectedHint,
       });
 
-      // 在反白文字後面插入
-      const newContent =
-        content.substring(0, selectionEnd) +
-        textToInsert +
-        content.substring(selectionEnd);
-
-      setContent(newContent);
-      setShowContextMenu(false);
-
-      // 更新 contentEditable div 的內容（將 \n 轉換為 <br>）
-      if (editorRef.current) {
-        editorRef.current.innerHTML = textToHtml(newContent);
+      // 切換到 Expression Builder 並設置輸入文字
+      if (toolPanelRef.current) {
+        toolPanelRef.current.switchToExpressionBuilder(cleanExample);
       }
 
-      // 將游標移到插入文字的後面
-      setTimeout(() => {
-        if (editorRef.current) {
-          const newPosition = selectionEnd + textToInsert.length;
-          editorRef.current.focus();
-          setSelectionRange(editorRef.current, newPosition, newPosition);
-        }
-      }, 0);
+      // 關閉 context menu
+      setShowContextMenu(false);
     };
 
     return (
@@ -1266,13 +1261,16 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
             )}
 
             {menuStage === "expansion-hint-error" && selectionError && (
-              <SelectionErrorPanel message={selectionError} />
+              <SelectionErrorPanel
+                message={selectionError}
+                onClose={handleCloseExpansionHintError}
+              />
             )}
 
             {menuStage === "paraphrase-error" && selectionError && (
               <SelectionErrorPanel
                 message={selectionError}
-                onClose={isParaphraseNoChange ? handleNoChangeNeeded : handleDiscardParaphrase}
+                onClose={handleCloseParaphraseError}
               />
             )}
           </div>

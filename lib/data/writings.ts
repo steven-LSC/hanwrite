@@ -89,7 +89,9 @@ const mockExpressionBuilderResults: ExpressionBuilderResult[] = [
   },
   {
     type: "connective",
-    content: ["그리고", "또한", "게다가"],
+    content: [
+      { vocab: "그리고", translate: "and" },
+    ],
   },
   {
     type: "vocab-grammar-example",

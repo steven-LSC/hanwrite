@@ -87,6 +87,10 @@ export function BehaviorHistoryModal({
         label: "Inserted",
         color: "text-(--color-text-highlight)",
       },
+      "expansion-hint-try": {
+        label: "Try",
+        color: "text-green-600",
+      },
       "expansion-hint-discard": {
         label: "Discarded",
         color: "text-red-500",
@@ -240,6 +244,31 @@ export function BehaviorHistoryModal({
         </p>
         <p className="font-medium text-[14px] text-(--color-text-secondary)">
           {resultData.insertedHint.example}
+        </p>
+      </div>
+    );
+  };
+
+  // 渲染 Expansion Hint Try 記錄
+  const renderTryRecord = (record: BehaviorRecord) => {
+    const resultData = record.resultData as {
+      selectedHint?: ExpansionHint;
+    };
+
+    if (!resultData.selectedHint) {
+      return null;
+    }
+
+    return (
+      <div className="bg-(--color-bg-secondary) rounded-[8px] p-[12px] flex flex-col gap-[5px]">
+        <p className="font-medium text-[14px] text-(--color-text-secondary)">
+          {resultData.selectedHint.explanation}
+        </p>
+        <p className="text-[12px] text-(--color-text-tertiary)">
+          Example sentence:
+        </p>
+        <p className="font-medium text-[14px] text-(--color-text-secondary)">
+          {resultData.selectedHint.example}
         </p>
       </div>
     );
@@ -588,7 +617,7 @@ export function BehaviorHistoryModal({
                     Connective:
                   </p>
                   <p className="font-medium text-[14px] text-(--color-text-secondary)">
-                    {result.content.join(", ")}
+                    {result.content.map((item) => `${item.vocab} (${item.translate})`).join(", ")}
                   </p>
                 </>
               )}
@@ -916,6 +945,9 @@ export function BehaviorHistoryModal({
         break;
       case "expansion-hint-insert":
         content = renderInsertRecord(record);
+        break;
+      case "expansion-hint-try":
+        content = renderTryRecord(record);
         break;
       case "expansion-hint-discard":
         // discard 不需要顯示 content

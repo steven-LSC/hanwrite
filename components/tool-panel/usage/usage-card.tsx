@@ -46,6 +46,12 @@ export function UsageCard({ title, stats, feature }: UsageCardProps) {
       value: stats.inserted,
     });
   }
+  if (stats.tried !== undefined) {
+    statItems.push({
+      label: "Try",
+      value: stats.tried,
+    });
+  }
   if (stats.discarded !== undefined) {
     statItems.push({
       label: "Discarded",

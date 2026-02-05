@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { ExpansionHint } from "@/lib/types";
 
 interface ExpansionHintPanelProps {
@@ -36,11 +35,10 @@ export function ExpansionHintPanel({
           <button
             key={index}
             onClick={() => onSelectHint(index)}
-            className={`flex flex-col gap-[5px] p-[10px] rounded-[10px] text-left transition-colors duration-200 border ${
-              selectedIndex === index
-                ? "bg-(--color-bg-secondary) border-(--color-border)"
-                : "border-transparent hover:bg-(--color-bg-secondary)"
-            }`}
+            className={`flex flex-col gap-[5px] p-[10px] rounded-[10px] text-left transition-colors duration-200 border ${selectedIndex === index
+              ? "bg-(--color-bg-secondary) border-(--color-border)"
+              : "border-transparent hover:bg-(--color-bg-secondary)"
+              }`}
           >
             {/* 說明文字 */}
             <p className="font-medium text-[14px] text-(--color-text-secondary)">
@@ -49,7 +47,7 @@ export function ExpansionHintPanel({
 
             {/* Example sentence 標籤 */}
             <p className="font-normal text-[14px] text-(--color-text-tertiary)">
-              Example sentence:
+              Example:
             </p>
 
             {/* 韓文例句 */}
@@ -75,29 +73,26 @@ export function ExpansionHintPanel({
           </span>
         </button>
 
-        {/* Insert 按鈕 */}
+        {/* Try 按鈕 */}
         <button
           onClick={onInsert}
           disabled={selectedIndex === null}
-          className={`flex items-center gap-[5px] px-[10px] py-[5px] rounded-[5px] transition-colors duration-200 ${
-            selectedIndex === null
-              ? "bg-gray-300 cursor-not-allowed"
-              : "bg-(--color-primary) hover:brightness-110"
-          }`}
+          className={`flex items-center gap-[5px] px-[10px] py-[5px] rounded-[5px] transition-colors duration-200 ${selectedIndex === null
+            ? "bg-gray-300 cursor-not-allowed"
+            : "bg-(--color-primary) hover:brightness-110"
+            }`}
         >
           <span
-            className={`material-symbols-rounded text-[20px] ${
-              selectedIndex === null ? "text-gray-500" : "text-white"
-            }`}
+            className={`material-symbols-rounded text-[20px] ${selectedIndex === null ? "text-gray-500" : "text-white"
+              }`}
           >
-            check
+            arrow_forward
           </span>
           <span
-            className={`font-medium text-[14px] ${
-              selectedIndex === null ? "text-gray-500" : "text-white"
-            }`}
+            className={`font-medium text-[14px] ${selectedIndex === null ? "text-gray-500" : "text-white"
+              }`}
           >
-            Insert
+            Try
           </span>
         </button>
       </div>

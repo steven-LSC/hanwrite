@@ -29,6 +29,7 @@ type ToolType =
 
 export interface ToolPanelRef {
   getToolState: () => ToolState;
+  switchToExpressionBuilder: (inputText: string) => void;
 }
 
 interface ToolButton {
@@ -81,6 +82,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
   // 暴露方法給父元件
   useImperativeHandle(ref, () => ({
     getToolState: () => toolState,
+    switchToExpressionBuilder,
   }));
 
   // 檢查並監聽 session 狀態
@@ -366,6 +368,19 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
     setIsDropdownOpen(false);
     // 記錄工具選擇行為
     logBehavior(`tool-select-${tool}`);
+    setActivityState("tool-using");
+  };
+
+  // 切換到 Expression Builder 並設置輸入文字
+  const switchToExpressionBuilder = (inputText: string) => {
+    setToolState((prev) => ({
+      ...prev,
+      currentTool: "expression-builder",
+      "expression-builder": {
+        results: null,
+        inputText: inputText,
+      },
+    }));
     setActivityState("tool-using");
   };
 
