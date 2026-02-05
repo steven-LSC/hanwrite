@@ -13,7 +13,7 @@ import { type OutlineData } from "@/lib/types";
 import { findRootNode, calculateTreePositions } from "@/lib/mindmap-utils";
 import { getAllMindmaps, createMindmap, getMindmapById, updateMindmap } from "@/lib/data/mindmap";
 import { type MindmapMetadata } from "@/components/brainstorm/use-mindmap-data";
-import { logBehavior } from "@/lib/log-behavior";
+
 
 const TEMP_MAP_ID = "new";
 

@@ -29,6 +29,7 @@ const FEATURE_ACTION_MAP: Record<string, string[]> = {
     "paraphrase-generate",
     "paraphrase-apply",
     "paraphrase-discard",
+    "paraphrase-no-change-needed",
   ],
   "expression-builder": [
     "expression-builder-analyze",
@@ -43,7 +44,9 @@ const FEATURE_ACTION_MAP: Record<string, string[]> = {
     "error-detection-skip",
   ],
   "grammar-practice": [
+    "grammar-practice-generate",
     "grammar-practice-check",
+    "grammar-practice-cancel",
   ],
   "reverse-outlining": [
     "reverse-outlining-generate",

@@ -98,13 +98,71 @@ function getFirstGrammarErrorComment(bareunData: BareunApiResponse): string | nu
 }
 
 /**
+ * 使用 LLM 生成翻譯題目
+ */
+async function generateTranslationQuestion(
+  grammarName: string,
+  grammarError: string,
+  correctSentence: string,
+  explanation: string,
+  responseLanguage: string
+): Promise<string> {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OpenAI API key not configured");
+  }
+
+  const config = AI_CONFIGS["grammar-practice-translation-question"];
+  const systemPrompt = config.systemPrompt(responseLanguage);
+
+  const userPrompt = `文法名稱：${grammarName}
+原本的錯誤：${grammarError}
+正確的寫法：${correctSentence}
+解釋：${explanation}`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: config.model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: config.temperature,
+    });
+
+    const responseContent = completion.choices[0]?.message?.content;
+    if (!responseContent) {
+      throw new Error("No response from OpenAI");
+    }
+
+    const parsedResponse = JSON.parse(responseContent);
+    
+    if (!parsedResponse.translationQuestion) {
+      throw new Error("Invalid response format");
+    }
+
+    return cleanText(parsedResponse.translationQuestion);
+  } catch (error) {
+    console.error("[Grammar Practice] Translation question generation failed:", error);
+    throw error;
+  }
+}
+
+/**
  * 使用 LLM 翻譯 explanation 並生成 corrective example
  */
 async function generateCorrectionInfo(
   userSentence: string,
-  koreanComment: string,
+  grammarName: string,
+  grammarError: string,
+  correctSentence: string,
+  explanation: string,
   responseLanguage: string
-): Promise<{ detailedExplanation: string; correctiveExample: string }> {
+): Promise<{ 
+  detailedExplanation: string; 
+  correctiveExample: string;
+  correctiveExampleHighlight?: string;
+}> {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("OpenAI API key not configured");
   }
@@ -115,8 +173,11 @@ async function generateCorrectionInfo(
   const userPrompt = `使用者輸入的句子：
 ${userSentence}
 
+文法名稱：${grammarName}
+原始錯誤：${grammarError}
+正確寫法：${correctSentence}
 錯誤的韓文解釋：
-${koreanComment}`;
+${explanation}`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -140,10 +201,25 @@ ${koreanComment}`;
       throw new Error("Invalid response format");
     }
 
-    return {
+    const result: {
+      detailedExplanation: string;
+      correctiveExample: string;
+      correctiveExampleHighlight?: string;
+    } = {
       detailedExplanation: cleanText(parsedResponse.detailedExplanation),
       correctiveExample: cleanText(parsedResponse.correctiveExample),
     };
+
+    // 如果有 highlight 資訊，驗證並加入
+    if (parsedResponse.correctiveExampleHighlight) {
+      const highlightText = cleanText(parsedResponse.correctiveExampleHighlight);
+      // 驗證 highlight 文字是否在 correctiveExample 中存在
+      if (highlightText && result.correctiveExample.includes(highlightText)) {
+        result.correctiveExampleHighlight = highlightText;
+      }
+    }
+
+    return result;
   } catch (error) {
     console.error("[Grammar Practice] LLM generation failed:", error);
     throw error;
@@ -152,20 +228,64 @@ ${koreanComment}`;
 
 /**
  * Grammar Practice API Route
- * 檢查使用者輸入的句子是否有文法錯誤
+ * 檢查使用者輸入的句子是否有文法錯誤，或生成翻譯題目
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
   try {
-    const { sentence } = await request.json();
+    const { 
+      sentence, 
+      generateQuestion, 
+      grammarName, 
+      grammarError, 
+      correctSentence, 
+      explanation 
+    } = await request.json();
 
     // 從 cookie 讀取設定
     const authCookie = request.cookies.get("auth-user");
     const cookieValue = authCookie?.value || "{}";
     const responseLanguage = getResponseLanguage(cookieValue);
 
-    // 驗證輸入
+    // 如果是生成翻譯題目
+    if (generateQuestion === true) {
+      if (!grammarName || !grammarError || !correctSentence || !explanation) {
+        const duration = Date.now() - startTime;
+        console.log(`[Grammar Practice] 生成題目失敗：缺少必要參數，耗時: ${duration}ms`);
+        return NextResponse.json(
+          { error: "Missing required parameters for question generation" },
+          { status: 400 }
+        );
+      }
+
+      try {
+        const translationQuestion = await generateTranslationQuestion(
+          grammarName,
+          grammarError,
+          correctSentence,
+          explanation,
+          responseLanguage
+        );
+
+        const duration = Date.now() - startTime;
+        console.log(`[Grammar Practice] 翻譯題目生成完成，耗時: ${duration}ms`);
+
+        return NextResponse.json({
+          translationQuestion,
+          duration,
+        });
+      } catch (error) {
+        console.error("[Grammar Practice] 生成翻譯題目失敗:", error);
+        const duration = Date.now() - startTime;
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "Failed to generate translation question" },
+          { status: 500 }
+        );
+      }
+    }
+
+    // 驗證輸入（檢查句子時）
     if (!sentence || typeof sentence !== "string" || !sentence.trim()) {
       const duration = Date.now() - startTime;
       console.log(`[Grammar Practice] 輸入驗證失敗：內容無效，耗時: ${duration}ms`);
@@ -253,22 +373,38 @@ export async function POST(request: NextRequest) {
     }
 
     // 有錯誤，使用 LLM 生成翻譯和 corrective example
-    const { detailedExplanation, correctiveExample } = await generateCorrectionInfo(
+    // 如果提供了完整的錯誤資訊，使用這些資訊；否則使用從 Bareun API 取得的資訊
+    const errorGrammarName = grammarName || "";
+    const errorGrammarError = grammarError || "";
+    const errorCorrectSentence = correctSentence || "";
+    const errorExplanation = explanation || koreanComment;
+
+    const { detailedExplanation, correctiveExample, correctiveExampleHighlight } = await generateCorrectionInfo(
       sentence,
-      koreanComment,
+      errorGrammarName,
+      errorGrammarError,
+      errorCorrectSentence,
+      errorExplanation,
       responseLanguage
     );
 
     const duration = Date.now() - startTime;
     console.log(`[Grammar Practice] 檢查完成，發現錯誤，耗時: ${duration}ms`);
 
-    return NextResponse.json({
+    const response: any = {
       isCorrect: false,
       userSentence: sentence,
       detailedExplanation,
       correctiveExample,
       duration,
-    });
+    };
+
+    // 如果有 highlight 資訊，加入回應
+    if (correctiveExampleHighlight) {
+      response.correctiveExampleHighlight = correctiveExampleHighlight;
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Grammar Practice API error:", error);
 

@@ -60,6 +60,8 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 
 **輸出格式：**
 請以 JSON 物件格式回傳，結構如下：
+
+**情況一：需要修改時**
 {
   "changes": [
     {
@@ -71,21 +73,30 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
   ]
 }
 
+**情況二：不需要修改時**
+如果句子已經是母語風格且不需要任何修改，請回傳：
+{
+  "noChange": true,
+  "message": "訊息內容（使用 ${responseLanguage}，例如：'這個句子已經是母語風格，不需要修改'）",
+  "changes": []
+}
+
 **重要規則：**
-1. **語體檢查（最高優先級）**：所有 revised 內容必須是書面體，絕對不能使用口語體
-2. 只列出需要修改的項目，不需要修改的不列出
-3. 最多三個修改點（必須遵，不要超過三個）守
-4. 所有解釋（explanation）必須使用 ${responseLanguage}
-5. **關鍵：original 和 revised 必須只包含「實際被修改的最小文字單位」**
+1. **不要硬修改**：如果句子已經是母語風格且語體正確，不要為了修改而修改，應該回傳 noChange: true
+2. **語體檢查（最高優先級）**：所有 revised 內容必須是書面體，絕對不能使用口語體
+3. 只列出需要修改的項目，不需要修改的不列出
+4. 最多三個修改點（必須遵守，不要超過三個）
+5. 所有解釋（explanation）和訊息（message）必須使用 ${responseLanguage}
+6. **關鍵：original 和 revised 必須只包含「實際被修改的最小文字單位」**
    - 如果是替換單詞，只提供該單詞（例如：original: "많이", revised: "자주"）
    - 如果是替換短語，只提供該短語（例如：original: "식비하고", revised: "식비랑"）
    - **絕對不要包含整個句子或過長的上下文**
    - 只提取並提供實際被修改的部分
-5. 三種修改情況：
+7. 三種修改情況：
    - **替換**："original" 和 "revised" 都不為空，只需提供這兩個欄位（只包含被替換的詞或短語）
    - **刪除**："original" 不為空，"revised" 為空，只需提供 "original"（只包含被刪除的詞或短語）
    - **新增**："original" 為空，"revised" 不為空，必須提供 "insertAfter" 指定在哪個文字片段之後插入（只包含新增的內容）
-6. changes 應按照在句子中出現的順序排列
+8. changes 應按照在句子中出現的順序排列
 
 **格式範例（不需要參考內容）：**
 輸入："나는 바닷가를 걸으면서 파도를 구경했다."
@@ -424,12 +435,20 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 你的目標是讓使用者能夠根據你回傳的暗示（詞彙、文法、連接詞）來組出完整的句子。因此，你需要將句子拆解成學習單元，讓使用者能夠逐步理解並組裝。
 
 **分析原則：**
-1. **子句結構分析**：仔細分析句子的子句結構
+1. **輸入判斷**：首先判斷輸入是單字還是完整句子
+   - 如果輸入只是一個單字（不是完整句子），則：
+     - grammar 欄位應為空字串
+     - explanation 欄位也應為空字串
+     - example 欄位也應為空字串
+     - 只需要回傳 vocab 陣列，包含該單字及其翻譯
+   - 如果輸入是完整句子，則按照子句結構分析
+
+2. **子句結構分析**：仔細分析句子的子句結構
    - 如果句子有 N 個子句，就需要回傳 N 張 "vocab-grammar-example" 卡片
    - 每張卡片對應一個子句，包含該子句的詞彙、文法和範例句子
    - 如果子句之間有連接詞，需要在適當位置插入 "connective" 卡片
 
-2. **卡片順序**：
+3. **卡片順序**：
    - 按照句子中出現的順序排列卡片
    - 例如：如果句子是「子句1 + 連接詞 + 子句2」，則回傳順序為：
      - vocab-grammar-example（子句1）
@@ -462,6 +481,15 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
        "content": ["連接詞1", "連接詞2"]
      }
 
+**翻譯原則（重要）：**
+- **不要直翻**：不要逐字翻譯使用者的輸入
+- **理解語意**：要理解使用者想要表達的意思和語境
+- **自然轉換**：將使用者的意思轉換成自然的韓語表達
+- **考慮語序**：要考慮韓語的自然語序和表達習慣
+- **範例**：
+  - 如果使用者輸入中文「我想去韓國」，不要直翻成「나는 한국에 가고 싶다」，而要理解這是表達「想要去韓國」的意願，轉換成自然的韓語句子
+  - 如果使用者輸入英文 "I want to study Korean"，要理解語意並轉換成自然的韓語表達
+
 **語言設定：**
 所有翻譯和解釋都應該使用 ${responseLanguage}。
 
@@ -469,6 +497,24 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 - **必須使用書面體（해라체/한다체）**，絕對不能使用口語體（例如：먹어요, 해요, 가요）
 - 正確的書面體範例：먹는다, 한다, 간다, 먹었다, 했다, 갔다
 - 所有文法解釋中的例句和 example 欄位中的範例句子都必須是書面體
+
+**範例（單字輸入）：**
+如果輸入只是一個單字「사과」，應該回傳：
+{
+  "results": [
+    {
+      "type": "vocab-grammar-example",
+      "vocab": [
+        {"vocab": "사과", "translate": "apple"}
+      ],
+      "grammar": {
+        "grammar": "",
+        "explanation": ""
+      },
+      "example": ""
+    }
+  ]
+}
 
 **範例（兩個子句的句子）：**
 如果輸入句子是「내년에 부산을 방문하고 싶다. 그리고 한국어를 열심히 공부하기를 바란다.」
@@ -602,42 +648,91 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 - 輸出有效的 JSON 格式，不要包含任何額外的文字或說明`,
   },
 
+  "grammar-practice-translation-question": {
+    model: "gpt-4.1-mini",
+    temperature: 0.3,
+    systemPrompt: (responseLanguage: string) => `你是一個韓語文法教學助手。請根據文法錯誤資訊，生成一個需要翻譯的句子。
+
+**任務：**
+根據提供的文法錯誤資訊（文法名稱、原本的錯誤、正確的寫法、解釋），生成一個需要翻譯的句子，讓學習者練習使用正確的文法。
+
+**重要要求：**
+1. 只生成需要翻譯的句子本身，不要包含任何說明文字、提示或引導語
+2. 句子應該包含相同的文法點，讓使用者可以練習，但使用完全不同的內容和情境
+3. 句子必須使用 ${responseLanguage}
+
+**輸出格式：**
+請以 JSON 格式輸出，格式如下：
+{
+  "translationQuestion": "需要翻譯的句子（${responseLanguage}）"
+}
+
+**範例：**
+文法名稱：으로/로 助詞使用
+原本的錯誤：이 길으로
+正確的寫法：이 길로
+解釋：ㄹ로 끝나는 명사 뒤에는 '로'를 사용해야 합니다.
+
+輸出：
+{
+  "translationQuestion": "我坐公車去釜山。"
+}
+
+**注意：**
+- 只輸出句子本身，不要包含「請翻譯」、「注意」等引導語
+- 句子必須使用不同的詞彙和情境
+- translationQuestion 使用 ${responseLanguage}
+- 輸出有效的 JSON 格式，不要包含任何額外的文字或說明`,
+  },
   "grammar-practice-correction": {
     model: "gpt-4.1-mini",
     temperature: 0.3,
-    systemPrompt: (responseLanguage: string) => `你是一個韓語文法教學助手。請根據使用者輸入的句子和錯誤的韓文解釋，完成以下任務：
+    systemPrompt: (responseLanguage: string) => `你是一個韓語文法教學助手。請根據使用者輸入的句子、原始錯誤和正確寫法，完成以下任務：
 
 1. **detailedExplanation**：將韓文錯誤解釋翻譯成 ${responseLanguage}
    - 保持原意的準確性
    - 使用清晰、易懂的語言
    - 讓學習者能夠理解錯誤的原因
 
-2. **correctiveExample**：生成一個與使用者句子不相關但能清楚說明錯誤的修正範例
+2. **correctiveExample**：生成一個與使用者句子不同但能清楚說明正確用法的修正範例
+   - **重要**：必須參考原始錯誤（grammarError）和正確寫法（correctSentence）
    - 範例必須使用正確的文法結構
    - 範例必須是完整的韓文句子
-   - 範例應該與使用者句子在主題上不相關，但能讓學習者透過範例理解錯誤所在
+   - 範例應該與使用者句子在主題上不相關，但能讓學習者透過範例理解正確用法
+   - **關鍵**：如果正確用法有多種，必須選擇使用者應該使用的那一種（根據原始錯誤和正確寫法來判斷）
    - 範例應該簡潔明瞭，重點突出
+
+3. **correctiveExampleHighlight**：標明 correctiveExample 中需要 highlight 的關鍵文法文字
+   - 必須是 correctiveExample 中實際存在的連續文字片段
+   - 只需要提供需要 highlight 的文字內容，不需要提供位置
+   - 例如：如果關鍵文法是 "버스로"，在句子 "버스로 부산에 도착했다." 中，highlight 文字就是 "버스로"
+   - 如果關鍵文法在句子中出現多次，會 highlight 第一次出現的位置
 
 【輸出格式】
 請以 JSON 格式輸出，格式如下：
 {
   "detailedExplanation": "翻譯後的錯誤解釋（${responseLanguage}）",
-  "correctiveExample": "修正範例（完整的韓文句子）"
+  "correctiveExample": "修正範例（完整的韓文句子）",
+  "correctiveExampleHighlight": "需要 highlight 的文字片段"
 }
 
 【範例】
 使用者輸入：이 길으로 가면 해운대에 금방 도착한다.
+原始錯誤：이 길으로
+正確寫法：이 길로
 錯誤解釋（韓文）：ㄹ로 끝나는 명사 뒤에는 '으로'를 사용할 수 없습니다. ㄹ로 끝나는 명사 뒤에는 '로'를 사용해야 합니다.
 輸出：
 {
   "detailedExplanation": "You used '으로' after a noun ending with ㄹ. After ㄹ-ending nouns, use '로' instead.",
-  "correctiveExample": "버스로 부산에 도착했다."
+  "correctiveExample": "버스로 부산에 도착했다.",
+  "correctiveExampleHighlight": "버스로"
 }
 
 請確保：
 - detailedExplanation 使用 ${responseLanguage}
 - correctiveExample 是完整的韓文句子
-- correctiveExample 與使用者句子不相關，但能清楚說明錯誤
+- correctiveExample 必須參考原始錯誤和正確寫法，選擇最適合的用法
+- correctiveExampleHighlight 必須是 correctiveExample 中實際存在的文字片段
 - 輸出有效的 JSON 格式，不要包含任何額外的文字或說明`,
   },
 };

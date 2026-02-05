@@ -53,6 +53,8 @@ export interface ParaphraseChange {
 export interface ParaphraseResult {
   originalText: string; // 原始句子
   changes: ParaphraseChange[]; // 所有修改項目
+  noChange?: boolean; // 是否不需要修改
+  message?: string; // 不需要修改時的訊息
 }
 
 // Context Menu 狀態
@@ -136,7 +138,9 @@ export interface GrammarPracticeResult {
   isCorrect: boolean; // 是否正確
   userSentence: string; // 使用者輸入的句子
   correctiveExample?: string; // 錯誤時的修正範例（僅錯誤時有）
+  correctiveExampleHighlight?: string; // 需要 highlight 的關鍵文法文字（僅錯誤時有）
   detailedExplanation?: string; // 錯誤時的詳細解釋（僅錯誤時有）
+  translationQuestion?: string; // 翻譯題目（使用 response language）
 }
 
 // Tool Panel 相關型別

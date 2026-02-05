@@ -111,13 +111,9 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
     // 使用自訂事件來監聽同標籤頁的變化
     window.addEventListener("session-status-change", handleCustomStorageChange);
 
-    // 定期檢查 session 狀態（作為備援機制）
-    const intervalId = setInterval(checkSessionStatus, 1000);
-
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("session-status-change", handleCustomStorageChange);
-      clearInterval(intervalId);
     };
   }, []);
 
@@ -239,26 +235,17 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
   // 追蹤 loading 狀態
   const [isLoading, setIsLoading] = useState(false);
 
-  // 監聽當前工具的 loading 狀態變化
-  useEffect(() => {
-    const checkLoading = () => {
-      let loading = false;
-      if (currentTool === "reverse-outlining") {
-        loading = reverseOutliningRef.current?.isAnalyzing || false;
-      } else if (currentTool === "ai-analysis") {
-        loading = aiAnalysisRef.current?.isAnalyzing || false;
-      } else if (currentTool === "expression-builder") {
-        loading = expressionBuilderRef.current?.isAnalyzing || false;
-      }
+  // 處理 loading 狀態變化
+  const handleLoadingChange = (tool: ToolType, loading: boolean) => {
+    // 只有當前工具才更新 loading 狀態
+    if (currentTool === tool) {
       setIsLoading(loading);
-    };
+    }
+  };
 
-    // 初始檢查
-    checkLoading();
-
-    // 定期檢查 loading 狀態（因為 ref 變化不會觸發重新渲染）
-    const interval = setInterval(checkLoading, 100);
-    return () => clearInterval(interval);
+  // 當工具切換時，重置 loading 狀態
+  useEffect(() => {
+    setIsLoading(false);
   }, [currentTool]);
 
   // 點擊外部關閉 dropdown
@@ -323,6 +310,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
                 },
               }));
             }}
+            onLoadingChange={(loading) => handleLoadingChange("expression-builder", loading)}
           />
         );
       case "ai-analysis":
@@ -344,6 +332,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
                 "error-detection-correction": results,
               }));
             }}
+            onLoadingChange={(loading) => handleLoadingChange("ai-analysis", loading)}
           />
         );
       case "reverse-outlining":
@@ -358,6 +347,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
                 "reverse-outlining": results,
               }));
             }}
+            onLoadingChange={(loading) => handleLoadingChange("reverse-outlining", loading)}
           />
         );
       case "usage":

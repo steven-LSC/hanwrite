@@ -1,8 +1,6 @@
 "use client";
 
-import React, {
-  useState,
-  useEffect,
+import {
   useImperativeHandle,
   forwardRef,
   useRef,
@@ -23,6 +21,7 @@ interface AIAnalysisProps {
   onResultsChange: (results: ProficiencyReport) => void;
   errorDetectionInitialResults: ErrorDetectionResult | null;
   onErrorDetectionResultsChange: (results: ErrorDetectionResult) => void;
+  onLoadingChange?: (isLoading: boolean) => void; // loading 狀態變化 callback
 }
 
 type AIAnalysisSubFeature = "error-detection" | "proficiency-report";
@@ -34,6 +33,7 @@ export const AIAnalysis = forwardRef<AIAnalysisHandle, AIAnalysisProps>(
     onResultsChange,
     errorDetectionInitialResults,
     onErrorDetectionResultsChange,
+    onLoadingChange,
   }, ref) => {
     const proficiencyReportRef = useRef<ProficiencyReportHandle>(null);
     const errorDetectionRef = useRef<ErrorDetectionCorrectionHandle>(null);
@@ -63,6 +63,7 @@ export const AIAnalysis = forwardRef<AIAnalysisHandle, AIAnalysisProps>(
           writingId={writingId}
           initialResults={errorDetectionInitialResults}
           onResultsChange={onErrorDetectionResultsChange}
+          onLoadingChange={onLoadingChange}
         />
 
         {/* Proficiency Report Modal（透過 ref 控制） */}

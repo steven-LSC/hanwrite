@@ -88,6 +88,24 @@ export function UsageCard({ title, stats, feature }: UsageCardProps) {
       value: stats.vocabularyImageClicks,
     });
   }
+  if (stats.generated !== undefined) {
+    statItems.push({
+      label: "Generated",
+      value: stats.generated,
+    });
+  }
+  if (stats.canceled !== undefined) {
+    statItems.push({
+      label: "Canceled",
+      value: stats.canceled,
+    });
+  }
+  if (stats.checked !== undefined) {
+    statItems.push({
+      label: "Checked",
+      value: stats.checked,
+    });
+  }
 
   // 處理數字點擊（打開 modal）
   const handleNumberClick = (e: React.MouseEvent) => {

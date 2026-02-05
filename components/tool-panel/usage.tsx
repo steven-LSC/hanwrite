@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { UsageCard } from "./usage/usage-card";
 import {
   FEATURE_CARDS,
@@ -95,7 +95,7 @@ export function Usage() {
           "Reverse Outlining": "reverse-outlining",
         };
         const feature = featureMap[config.title] || "";
-        
+
         return (
           <UsageCard
             key={config.title}

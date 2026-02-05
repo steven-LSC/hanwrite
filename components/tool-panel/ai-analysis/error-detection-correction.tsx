@@ -1,6 +1,6 @@
 "use client";
 
-import React, {
+import {
   useState,
   useImperativeHandle,
   forwardRef,
@@ -25,12 +25,13 @@ interface ErrorDetectionCorrectionProps {
   writingId?: string;
   initialResults: ErrorDetectionResult | null;
   onResultsChange: (results: ErrorDetectionResult) => void;
+  onLoadingChange?: (isLoading: boolean) => void; // loading 狀態變化 callback
 }
 
 export const ErrorDetectionCorrection = forwardRef<
   ErrorDetectionCorrectionHandle,
   ErrorDetectionCorrectionProps
->(({ writingId, initialResults, onResultsChange }, ref) => {
+>(({ writingId, initialResults, onResultsChange, onLoadingChange }, ref) => {
   const { selectedErrorIndex, setSelectedErrorIndex, editorHighlightRef, editorContentRef, editorClickHandlerRef } = useEditor();
   const [results, setResults] = useState<ErrorDetectionResult | null>(
     initialResults
@@ -443,6 +444,11 @@ export const ErrorDetectionCorrection = forwardRef<
     handleAnalyze,
     isAnalyzing,
   }));
+
+  // 當 isAnalyzing 變化時，通知父元件
+  useEffect(() => {
+    onLoadingChange?.(isAnalyzing);
+  }, [isAnalyzing, onLoadingChange]);
 
   // 載入中狀態
   if (isAnalyzing) {
@@ -1145,6 +1151,8 @@ export const ErrorDetectionCorrection = forwardRef<
           }}
           grammarName={results[selectedGrammarIndex].data.grammarName}
           explanation={results[selectedGrammarIndex].data.explanation}
+          grammarError={results[selectedGrammarIndex].data.grammarError}
+          correctSentence={results[selectedGrammarIndex].data.correctSentence}
         />
       )}
     </div>

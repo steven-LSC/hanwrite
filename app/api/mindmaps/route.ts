@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   const mindmap = await prisma.mindmap.create({
     data: {
       title,
-      nodes: [createRootNode()],
+      nodes: JSON.parse(JSON.stringify([createRootNode()])),
       userId,
     },
     select: {

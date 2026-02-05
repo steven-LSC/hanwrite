@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import { Button } from "../ui/button";
 import { Loading } from "../ui/loading";
 import { ErrorMessage } from "../ui/error-message";
@@ -18,6 +18,7 @@ interface ExpressionBuilderProps {
   initialInputText?: string;
   onResultsChange: (results: ExpressionBuilderResult[]) => void;
   onInputTextChange: (inputText: string) => void;
+  onLoadingChange?: (isLoading: boolean) => void; // loading 狀態變化 callback
 }
 
 export const ExpressionBuilder = forwardRef<ExpressionBuilderHandle, ExpressionBuilderProps>(({
@@ -26,6 +27,7 @@ export const ExpressionBuilder = forwardRef<ExpressionBuilderHandle, ExpressionB
   initialInputText = "",
   onResultsChange,
   onInputTextChange,
+  onLoadingChange,
 }, ref) => {
   const [inputText, setInputText] = useState(initialInputText);
   const [results, setResults] = useState<ExpressionBuilderResult[]>(
@@ -60,6 +62,11 @@ export const ExpressionBuilder = forwardRef<ExpressionBuilderHandle, ExpressionB
     isAnalyzing,
   }));
 
+  // 當 isAnalyzing 變化時，通知父元件
+  useEffect(() => {
+    onLoadingChange?.(isAnalyzing);
+  }, [isAnalyzing, onLoadingChange]);
+
   // 當輸入文字改變時，通知父元件
   const handleInputChange = (value: string) => {
     setInputText(value);
@@ -79,8 +86,12 @@ export const ExpressionBuilder = forwardRef<ExpressionBuilderHandle, ExpressionB
       }
 
       const { results: analysisResults, duration } = await getExpressionBuilderResults(inputText);
-      // 收到結果後記錄
-      logBehavior("expression-builder-analyze", { results: analysisResults, duration });
+      // 收到結果後記錄（包含使用者輸入內容）
+      logBehavior("expression-builder-analyze", {
+        results: analysisResults,
+        duration,
+        inputText: inputText.trim()
+      });
       // 只有在元件還掛載時才更新本地狀態
       if (isMountedRef.current) {
         setResults(analysisResults);
@@ -158,6 +169,9 @@ ExpressionBuilder.displayName = "ExpressionBuilder";
 function ResultBlock({ result }: { result: ExpressionBuilderResult }) {
   // vocab+grammar+example 合併卡片
   if (result.type === "vocab-grammar-example") {
+    // 判斷是否為單字輸入（grammar 為空時只顯示 vocab）
+    const isSingleWord = !result.grammar.grammar || result.grammar.grammar.trim() === "";
+
     return (
       <div className="bg-white border border-(--color-border) rounded-[10px] p-[20px] flex flex-col gap-[20px]">
         {/* Vocabulary 區塊 */}
@@ -191,54 +205,58 @@ function ResultBlock({ result }: { result: ExpressionBuilderResult }) {
           </div>
         </div>
 
-        {/* Grammar 區塊 */}
-        <div className="flex flex-col gap-[10px]">
-          <div className="flex items-center gap-[5px]">
-            <div
-              className="w-[16px] h-[16px] rounded-full"
-              style={{ backgroundColor: "var(--color-grammar)" }}
-            />
-            <span className="font-medium text-[16px] text-(--color-text-secondary)">
-              Grammar
-            </span>
+        {/* Grammar 區塊（僅在非單字時顯示） */}
+        {!isSingleWord && (
+          <div className="flex flex-col gap-[10px]">
+            <div className="flex items-center gap-[5px]">
+              <div
+                className="w-[16px] h-[16px] rounded-full"
+                style={{ backgroundColor: "var(--color-grammar)" }}
+              />
+              <span className="font-medium text-[16px] text-(--color-text-secondary)">
+                Grammar
+              </span>
+            </div>
+            <div className="bg-(--color-bg-secondary) px-[10px] py-[5px] rounded-[5px] flex items-center gap-[5px]">
+              <span className="shrink-0 max-w-[30%] font-medium text-[14px] text-(--color-text-secondary)">
+                {result.grammar.grammar}
+              </span>
+              <span className="font-medium text-[14px] text-(--color-text-secondary)">
+                →
+              </span>
+              <span className="font-medium text-[14px] text-(--color-text-secondary)">
+                {result.grammar.explanation}
+              </span>
+            </div>
           </div>
-          <div className="bg-(--color-bg-secondary) px-[10px] py-[5px] rounded-[5px] flex items-center gap-[5px]">
-            <span className="shrink-0 max-w-[30%] font-medium text-[14px] text-(--color-text-secondary)">
-              {result.grammar.grammar}
-            </span>
-            <span className="font-medium text-[14px] text-(--color-text-secondary)">
-              →
-            </span>
-            <span className="font-medium text-[14px] text-(--color-text-secondary)">
-              {result.grammar.explanation}
-            </span>
-          </div>
-        </div>
+        )}
 
-        {/* Example Sentence 區塊 */}
-        <div className="flex flex-col gap-[10px]">
-          <div className="flex items-center gap-[5px]">
-            <div
-              className="w-[16px] h-[16px] rounded-full"
-              style={{ backgroundColor: "var(--color-vocab)" }}
-            />
-            <span className="font-medium text-[16px] text-(--color-text-secondary)">
-              +
-            </span>
-            <div
-              className="w-[16px] h-[16px] rounded-full"
-              style={{ backgroundColor: "var(--color-grammar)" }}
-            />
-            <span className="font-medium text-[16px] text-(--color-text-secondary)">
-              Example Sentence
-            </span>
+        {/* Example Sentence 區塊（僅在非單字時顯示） */}
+        {!isSingleWord && (
+          <div className="flex flex-col gap-[10px]">
+            <div className="flex items-center gap-[5px]">
+              <div
+                className="w-[16px] h-[16px] rounded-full"
+                style={{ backgroundColor: "var(--color-vocab)" }}
+              />
+              <span className="font-medium text-[16px] text-(--color-text-secondary)">
+                +
+              </span>
+              <div
+                className="w-[16px] h-[16px] rounded-full"
+                style={{ backgroundColor: "var(--color-grammar)" }}
+              />
+              <span className="font-medium text-[16px] text-(--color-text-secondary)">
+                Example Sentence
+              </span>
+            </div>
+            <div className="bg-(--color-bg-secondary) px-[10px] py-[5px] rounded-[5px]">
+              <span className="font-medium text-[14px] text-(--color-text-secondary)">
+                {result.example}
+              </span>
+            </div>
           </div>
-          <div className="bg-(--color-bg-secondary) px-[10px] py-[5px] rounded-[5px]">
-            <span className="font-medium text-[14px] text-(--color-text-secondary)">
-              {result.example}
-            </span>
-          </div>
-        </div>
+        )}
       </div>
     );
   }

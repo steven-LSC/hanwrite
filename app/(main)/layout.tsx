@@ -180,13 +180,9 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
     // 使用自訂事件來監聽同標籤頁的變化
     window.addEventListener("session-status-change", handleCustomStorageChange);
 
-    // 定期檢查 session 狀態（作為備援機制）
-    const intervalId = setInterval(checkSessionStatus, 1000);
-
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("session-status-change", handleCustomStorageChange);
-      clearInterval(intervalId);
     };
   }, []);
 

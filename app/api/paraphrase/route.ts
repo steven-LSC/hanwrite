@@ -143,7 +143,11 @@ export async function POST(request: NextRequest) {
     console.log(`[Paraphrase] 回應內容: ${responseContent}`);
 
     // 解析 JSON 回應（LLM 只回傳 changes，不包含 position）
-    let parsedResponse: { changes: ParaphraseChangeInput[] };
+    let parsedResponse: { 
+      changes?: ParaphraseChangeInput[]; 
+      noChange?: boolean; 
+      message?: string;
+    };
     try {
       parsedResponse = JSON.parse(responseContent);
     } catch (parseError) {
@@ -151,7 +155,22 @@ export async function POST(request: NextRequest) {
       throw new Error("Invalid JSON response from OpenAI");
     }
 
-    // 驗證回應格式
+    // 檢查是否為 noChange 情況
+    if (parsedResponse.noChange === true) {
+      const result: ParaphraseResult = {
+        originalText: trimmedText,
+        changes: [],
+        noChange: true,
+        message: parsedResponse.message || "這個句子已經是母語風格，不需要修改",
+      };
+
+      const duration = Date.now() - startTime;
+      console.log(`[Paraphrase] 不需要修改，耗時: ${duration}ms`);
+
+      return NextResponse.json({ ...result, duration });
+    }
+
+    // 驗證回應格式（需要修改的情況）
     if (!Array.isArray(parsedResponse.changes)) {
       throw new Error("Invalid response format from OpenAI");
     }

@@ -126,6 +126,10 @@ export function BehaviorHistoryModal({
         label: "Discarded",
         color: "text-red-500",
       },
+      "paraphrase-no-change-needed": {
+        label: "No Change Needed",
+        color: "text-(--color-text-tertiary)",
+      },
       // Expression Builder
       "expression-builder-analyze": {
         label: "Analyzed",
@@ -154,9 +158,17 @@ export function BehaviorHistoryModal({
         color: "text-red-500",
       },
       // Grammar Practice
+      "grammar-practice-generate": {
+        label: "Generated",
+        color: "text-(--color-text-primary)",
+      },
       "grammar-practice-check": {
         label: "Checked",
         color: "text-(--color-text-primary)",
+      },
+      "grammar-practice-cancel": {
+        label: "Cancel",
+        color: "text-(--color-text-tertiary)",
       },
       // Reverse Outlining
       "reverse-outlining-generate": {
@@ -392,10 +404,36 @@ export function BehaviorHistoryModal({
       originalText?: string;
       changes?: ParaphraseChange[];
       duration?: number;
+      noChange?: boolean;
+      message?: string;
     };
 
     if (!resultData.originalText) {
       return null;
+    }
+
+    // 處理 noChange 情況
+    if (resultData.noChange === true) {
+      return (
+        <div className="flex flex-col gap-[10px]">
+          <div className="bg-(--color-bg-secondary) rounded-[8px] p-[12px] flex flex-col gap-[5px]">
+            <p className="text-[12px] text-(--color-text-tertiary)">
+              Original text:
+            </p>
+            <p className="font-medium text-[14px] text-(--color-text-secondary)">
+              {resultData.originalText}
+            </p>
+          </div>
+          <div className="bg-(--color-bg-secondary) rounded-[8px] p-[12px] flex flex-col gap-[5px]">
+            <p className="text-[12px] text-(--color-text-tertiary)">
+              Message:
+            </p>
+            <p className="font-medium text-[14px] text-(--color-text-secondary)">
+              {resultData.message || "這個句子已經是母語風格，不需要修改"}
+            </p>
+          </div>
+        </div>
+      );
     }
 
     return (
@@ -488,6 +526,7 @@ export function BehaviorHistoryModal({
     const resultData = record.resultData as {
       results?: ExpressionBuilderResult[];
       duration?: number;
+      inputText?: string;
     };
 
     if (!resultData.results || resultData.results.length === 0) {
@@ -496,6 +535,17 @@ export function BehaviorHistoryModal({
 
     return (
       <div className="flex flex-col gap-[10px]">
+        {/* 顯示使用者輸入內容 */}
+        {resultData.inputText && (
+          <div className="bg-(--color-bg-secondary) rounded-[8px] p-[12px] flex flex-col gap-[5px]">
+            <p className="text-[12px] text-(--color-text-tertiary)">
+              Input:
+            </p>
+            <p className="font-medium text-[14px] text-(--color-text-secondary)">
+              {resultData.inputText}
+            </p>
+          </div>
+        )}
         <div className="flex flex-col gap-[8px]">
           {resultData.results.map((result, index) => (
             <div
@@ -510,18 +560,27 @@ export function BehaviorHistoryModal({
                   <p className="font-medium text-[14px] text-(--color-text-secondary)">
                     {result.vocab.map((v) => `${v.vocab} (${v.translate})`).join(", ")}
                   </p>
-                  <p className="text-[12px] text-(--color-text-tertiary)">
-                    Grammar:
-                  </p>
-                  <p className="font-medium text-[14px] text-(--color-text-secondary)">
-                    {result.grammar.grammar} - {result.grammar.explanation}
-                  </p>
-                  <p className="text-[12px] text-(--color-text-tertiary)">
-                    Example:
-                  </p>
-                  <p className="font-medium text-[14px] text-(--color-text-secondary)">
-                    {result.example}
-                  </p>
+                  {/* 僅在 grammar 不為空時顯示 Grammar 和 Example */}
+                  {result.grammar.grammar && result.grammar.grammar.trim() !== "" && (
+                    <>
+                      <p className="text-[12px] text-(--color-text-tertiary)">
+                        Grammar:
+                      </p>
+                      <p className="font-medium text-[14px] text-(--color-text-secondary)">
+                        {result.grammar.grammar} - {result.grammar.explanation}
+                      </p>
+                      {result.example && result.example.trim() !== "" && (
+                        <>
+                          <p className="text-[12px] text-(--color-text-tertiary)">
+                            Example:
+                          </p>
+                          <p className="font-medium text-[14px] text-(--color-text-secondary)">
+                            {result.example}
+                          </p>
+                        </>
+                      )}
+                    </>
+                  )}
                 </>
               ) : (
                 <>
@@ -700,7 +759,43 @@ export function BehaviorHistoryModal({
     }
   };
 
-  // 渲染 Grammar Practice 記錄
+  // 渲染 Grammar Practice Generate 記錄
+  const renderGrammarPracticeGenerate = (record: BehaviorRecord) => {
+    const resultData = record.resultData as {
+      grammarName?: string;
+      grammarError?: string;
+      correctSentence?: string;
+      explanation?: string;
+      translationQuestion?: string;
+    };
+
+    if (!resultData.translationQuestion) {
+      return null;
+    }
+
+    return (
+      <div className="bg-(--color-bg-secondary) rounded-[8px] p-[12px] flex flex-col gap-[5px]">
+        {resultData.grammarName && (
+          <>
+            <p className="text-[12px] text-(--color-text-tertiary)">
+              Grammar:
+            </p>
+            <p className="font-medium text-[14px] text-(--color-text-secondary)">
+              {resultData.grammarName}
+            </p>
+          </>
+        )}
+        <p className="text-[12px] text-(--color-text-tertiary)">
+          Translation Question:
+        </p>
+        <p className="font-medium text-[14px] text-(--color-text-secondary)">
+          {resultData.translationQuestion}
+        </p>
+      </div>
+    );
+  };
+
+  // 渲染 Grammar Practice Check 記錄
   const renderGrammarPractice = (record: BehaviorRecord) => {
     const resultData = record.resultData as GrammarPracticeResult;
 
@@ -708,16 +803,8 @@ export function BehaviorHistoryModal({
       return null;
     }
 
-    const resultText = resultData.isCorrect ? "Correct" : "Incorrect";
-    const resultColor = resultData.isCorrect
-      ? "text-(--color-text-highlight)"
-      : "text-red-500";
-
     return (
       <div className="bg-(--color-bg-secondary) rounded-[8px] p-[12px] flex flex-col gap-[5px]">
-        <p className={`font-medium text-[14px] ${resultColor}`}>
-          {resultText}
-        </p>
         <p className="text-[12px] text-(--color-text-tertiary)">
           User sentence:
         </p>
@@ -730,7 +817,28 @@ export function BehaviorHistoryModal({
               Corrective example:
             </p>
             <p className="font-medium text-[14px] text-(--color-text-secondary)">
-              {resultData.correctiveExample}
+              {resultData.correctiveExampleHighlight ? (
+                (() => {
+                  const example = resultData.correctiveExample!;
+                  const highlightText = resultData.correctiveExampleHighlight;
+                  const index = example.indexOf(highlightText);
+                  if (index === -1) {
+                    // 如果找不到 highlight 文字，直接顯示原文字
+                    return example;
+                  }
+                  return (
+                    <>
+                      {example.slice(0, index)}
+                      <span className="bg-(--color-grammar) px-[2px] rounded-[2px]">
+                        {highlightText}
+                      </span>
+                      {example.slice(index + highlightText.length)}
+                    </>
+                  );
+                })()
+              ) : (
+                resultData.correctiveExample
+              )}
             </p>
           </>
         )}
@@ -845,6 +953,9 @@ export function BehaviorHistoryModal({
       case "paraphrase-discard":
         // discard 不需要顯示 content
         break;
+      case "paraphrase-no-change-needed":
+        // no-change-needed 不需要顯示 content
+        break;
 
       // Expression Builder
       case "expression-builder-analyze":
@@ -874,8 +985,20 @@ export function BehaviorHistoryModal({
         break;
 
       // Grammar Practice
-      case "grammar-practice-check":
+      case "grammar-practice-generate":
+        content = renderGrammarPracticeGenerate(record);
+        duration = (record.resultData as { duration?: number })?.duration;
+        break;
+      case "grammar-practice-check": {
+        const resultData = record.resultData as GrammarPracticeResult;
+        const resultText = resultData.isCorrect ? "Correct" : "Incorrect";
+        config.label = resultText;
+        config.color = resultData.isCorrect ? "text-(--color-text-highlight)" : "text-red-500";
         content = renderGrammarPractice(record);
+        break;
+      }
+      case "grammar-practice-cancel":
+        // cancel 不需要顯示 content
         break;
 
       // Reverse Outlining

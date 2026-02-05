@@ -43,6 +43,9 @@ export interface FeatureStats {
   saved?: number;
   vocabularySpeakerClicks?: number;
   vocabularyImageClicks?: number;
+  generated?: number;
+  canceled?: number;
+  checked?: number;
 }
 
 /**
@@ -62,6 +65,9 @@ export interface FeatureCardConfig {
     saved?: string;
     vocabularySpeakerClicks?: string;
     vocabularyImageClicks?: string;
+    generated?: string;
+    canceled?: string;
+    checked?: string;
   };
 }
 
@@ -126,7 +132,9 @@ export const FEATURE_CARDS: FeatureCardConfig[] = [
   {
     title: "Grammar Practice",
     actionNames: {
-      timesUsed: "grammar-practice-check",
+      timesUsed: "grammar-practice-generate",
+      checked: "grammar-practice-check",
+      canceled: "grammar-practice-cancel",
     },
   },
   {
@@ -179,6 +187,15 @@ export function calculateFeatureStats(
   if (config.actionNames.vocabularyImageClicks) {
     result.vocabularyImageClicks =
       stats[config.actionNames.vocabularyImageClicks] || 0;
+  }
+  if (config.actionNames.generated) {
+    result.generated = stats[config.actionNames.generated] || 0;
+  }
+  if (config.actionNames.canceled) {
+    result.canceled = stats[config.actionNames.canceled] || 0;
+  }
+  if (config.actionNames.checked) {
+    result.checked = stats[config.actionNames.checked] || 0;
   }
 
   return result;

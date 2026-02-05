@@ -24,7 +24,7 @@ import {
   ParaphraseResult,
 } from "@/lib/types";
 import { useFocus } from "@/app/(main)/focus-context";
-import { useEditor, EditorHighlightRef, EditorContentRef, ErrorPosition, EditorClickHandlerRef } from "@/app/(main)/editor-context";
+import { useEditor, ErrorPosition } from "@/app/(main)/editor-context";
 import { logBehavior } from "@/lib/log-behavior";
 import { useWritingProgress } from "@/lib/hooks/use-writing-progress";
 
@@ -84,6 +84,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
     const [paraphraseResult, setParaphraseResult] =
       useState<ParaphraseResult | null>(null);
     const [isLoadingParaphrase, setIsLoadingParaphrase] = useState(false);
+    const [isParaphraseNoChange, setIsParaphraseNoChange] = useState(false);
     const [selectionError, setSelectionError] = useState<string | null>(null);
 
     // 當 initialTitle 或 initialContent 改變時更新狀態（用於切換文章）
@@ -714,17 +715,18 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
         const { start, end } = range;
         const selected = content.substring(start, end);
 
-        // 如果有選取文字，顯示選單
+        // 如果有選取文字
         if (selected.trim().length > 0) {
-          // 如果 Paraphrase 或 Expansion Hint 正在顯示，不要覆蓋現有的選單
-          // 只能透過 discard 按鈕關閉
-          if (menuStage !== "initial") {
-            // 保持反白效果，但不改變選單狀態
+          // 如果 Paraphrase 或 Expansion Hint 正在顯示，不應該關閉它們
+          // 但反白功能應該正常運作
+          if (showContextMenu && menuStage !== "initial") {
+            // Paraphrase/Expansion Hint 顯示時，保持反白效果但不改變選單狀態
             editor.focus();
             setSelectionRange(editor, start, end);
             return;
           }
 
+          // 正常情況：顯示 initial 選單
           setSelectedText(selected);
           setSelectionStart(start);
           setSelectionEnd(end);
@@ -931,6 +933,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       setMenuStage("paraphrase-result");
       setIsLoadingParaphrase(true);
       setSelectionError(null);
+      setIsParaphraseNoChange(false);
 
       // 保持反白效果
       if (editorRef.current) {
@@ -940,13 +943,31 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
       try {
         const result = await getParaphraseResult(selectedText);
-        setParaphraseResult(result);
-        // 收到結果後記錄
-        logBehavior("paraphrase-generate", {
-          originalText: result.originalText,
-          changes: result.changes,
-          duration: result.duration,
-        });
+
+        // 檢查是否為 noChange 情況
+        if (result.noChange === true) {
+          const message = result.message || "這個句子已經是母語風格，不需要修改";
+          setSelectionError(message);
+          setMenuStage("paraphrase-error");
+          setIsParaphraseNoChange(true);
+          // 記錄 noChange 情況
+          logBehavior("paraphrase-generate", {
+            originalText: result.originalText,
+            changes: result.changes,
+            duration: result.duration,
+            noChange: true,
+            message: message,
+          });
+        } else {
+          setIsParaphraseNoChange(false);
+          setParaphraseResult(result);
+          // 收到結果後記錄
+          logBehavior("paraphrase-generate", {
+            originalText: result.originalText,
+            changes: result.changes,
+            duration: result.duration,
+          });
+        }
       } catch (error) {
         // 處理 API 錯誤
         const errorMessage =
@@ -962,6 +983,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
 
         setSelectionError(errorMessage);
         setMenuStage("paraphrase-error");
+        setIsParaphraseNoChange(false);
       } finally {
         setIsLoadingParaphrase(false);
       }
@@ -978,6 +1000,17 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
       } else {
         logBehavior("paraphrase-discard");
       }
+      setIsParaphraseNoChange(false);
+      setShowContextMenu(false);
+    };
+
+    // No Change Needed（關閉視窗）
+    const handleNoChangeNeeded = () => {
+      // 記錄 no-change-needed 行為
+      logBehavior("paraphrase-no-change-needed", {
+        originalText: selectedText,
+      });
+      setIsParaphraseNoChange(false);
       setShowContextMenu(false);
     };
 
@@ -1237,7 +1270,10 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
             )}
 
             {menuStage === "paraphrase-error" && selectionError && (
-              <SelectionErrorPanel message={selectionError} />
+              <SelectionErrorPanel
+                message={selectionError}
+                onClose={isParaphraseNoChange ? handleNoChangeNeeded : handleDiscardParaphrase}
+              />
             )}
           </div>
         )}

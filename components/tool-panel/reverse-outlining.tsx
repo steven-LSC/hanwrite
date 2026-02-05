@@ -1,6 +1,6 @@
 "use client";
 
-import React, {
+import {
   useState,
   useImperativeHandle,
   forwardRef,
@@ -26,12 +26,13 @@ interface ReverseOutliningProps {
   initialResults: ReverseOutliningResult | null;
   onResultsChange: (results: ReverseOutliningResult) => void;
   content?: string; // 當前編輯器中的文章內容
+  onLoadingChange?: (isLoading: boolean) => void; // loading 狀態變化 callback
 }
 
 export const ReverseOutlining = forwardRef<
   ReverseOutliningHandle,
   ReverseOutliningProps
->(({ writingId, initialResults, onResultsChange, content }, ref) => {
+>(({ writingId, initialResults, onResultsChange, content, onLoadingChange }, ref) => {
   const { editorContentRef } = useEditor();
   const [results, setResults] = useState<ReverseOutliningResult | null>(
     initialResults
@@ -48,6 +49,11 @@ export const ReverseOutlining = forwardRef<
     // 清除錯誤狀態
     setError(null);
   }, [writingId, initialResults]);
+
+  // 當 isAnalyzing 變化時，通知父元件
+  useEffect(() => {
+    onLoadingChange?.(isAnalyzing);
+  }, [isAnalyzing, onLoadingChange]);
 
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
