@@ -13,6 +13,7 @@ import { type OutlineData } from "@/lib/types";
 import { findRootNode, calculateTreePositions } from "@/lib/mindmap-utils";
 import { getAllMindmaps, createMindmap, getMindmapById, updateMindmap } from "@/lib/data/mindmap";
 import { type MindmapMetadata } from "@/components/brainstorm/use-mindmap-data";
+import { useUser } from "../../user-context";
 
 
 const TEMP_MAP_ID = "new";
@@ -31,6 +32,7 @@ function BrainstormPageContent() {
   const params = useParams();
   const router = useRouter();
   const mapId = params.mapId as string;
+  const { condition } = useUser();
 
   const [nodes, setNodes] = useState<Node[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -358,39 +360,41 @@ function BrainstormPageContent() {
       </div>
 
       {/* 右上角按鈕組 */}
-      <div className="absolute right-[20px] top-[20px] z-20">
-        <div className="h-[45px] bg-(--color-bg-card) border border-(--color-border) rounded-[5px] flex items-center px-[10px] py-[5px] gap-[10px]">
-          {/* Outline 按鈕 */}
-          <button
-            onClick={() => setIsOutlineGeneratorOpen(true)}
-            disabled={isLoading}
-            className={`w-[135px] px-[10px] py-[5px] flex gap-[5px] items-center transition-colors ${isOutlineGeneratorOpen ? "bg-slate-50" : "hover:bg-slate-50"
-              } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            <span className="material-symbols-rounded text-(--color-text-secondary) text-[20px]">
-              article
-            </span>
-            <span className="text-(--color-text-secondary) text-[14px] font-medium">
-              Outline
-            </span>
-          </button>
+      {condition !== "non-ai" && (
+        <div className="absolute right-[20px] top-[20px] z-20">
+          <div className="h-[45px] bg-(--color-bg-card) border border-(--color-border) rounded-[5px] flex items-center px-[10px] py-[5px] gap-[10px]">
+            {/* Outline 按鈕 */}
+            <button
+              onClick={() => setIsOutlineGeneratorOpen(true)}
+              disabled={isLoading}
+              className={`w-[135px] px-[10px] py-[5px] flex gap-[5px] items-center transition-colors ${isOutlineGeneratorOpen ? "bg-slate-50" : "hover:bg-slate-50"
+                } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <span className="material-symbols-rounded text-(--color-text-secondary) text-[20px]">
+                article
+              </span>
+              <span className="text-(--color-text-secondary) text-[14px] font-medium">
+                Outline
+              </span>
+            </button>
 
-          {/* Idea Partner 按鈕 */}
-          <button
-            onClick={() => setIsIdeaPartnerOpen((prev) => !prev)}
-            disabled={isLoading}
-            className={`w-[135px] px-[10px] py-[5px] flex gap-[5px] items-center transition-colors ${isIdeaPartnerOpen ? "bg-slate-50" : "hover:bg-slate-50"
-              } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            <span className="material-symbols-rounded text-(--color-text-secondary) text-[20px]">
-              wb_incandescent
-            </span>
-            <span className="text-(--color-text-secondary) text-[14px] font-medium">
-              Idea Partner
-            </span>
-          </button>
+            {/* Idea Partner 按鈕 */}
+            <button
+              onClick={() => setIsIdeaPartnerOpen((prev) => !prev)}
+              disabled={isLoading}
+              className={`w-[135px] px-[10px] py-[5px] flex gap-[5px] items-center transition-colors ${isIdeaPartnerOpen ? "bg-slate-50" : "hover:bg-slate-50"
+                } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <span className="material-symbols-rounded text-(--color-text-secondary) text-[20px]">
+                wb_incandescent
+              </span>
+              <span className="text-(--color-text-secondary) text-[14px] font-medium">
+                Idea Partner
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <IdeaPartner
         isOpen={isIdeaPartnerOpen}

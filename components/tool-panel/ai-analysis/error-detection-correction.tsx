@@ -13,6 +13,7 @@ import { ErrorDetectionResult, GrammarErrorInput, VocabErrorInput } from "@/lib/
 import { Loading } from "@/components/ui/loading";
 import { Button } from "@/components/ui/button";
 import { useEditor, ErrorPosition, EditorClickHandlerRef } from "@/app/(main)/editor-context";
+import { useUser } from "@/app/(main)/user-context";
 import { GrammarPracticeModal } from "./grammar-practice-modal";
 import { logBehavior } from "@/lib/log-behavior";
 
@@ -33,6 +34,7 @@ export const ErrorDetectionCorrection = forwardRef<
   ErrorDetectionCorrectionProps
 >(({ writingId, initialResults, onResultsChange, onLoadingChange }, ref) => {
   const { selectedErrorIndex, setSelectedErrorIndex, editorHighlightRef, editorContentRef, editorClickHandlerRef } = useEditor();
+  const { condition } = useUser();
   const [results, setResults] = useState<ErrorDetectionResult | null>(
     initialResults
   );
@@ -924,13 +926,15 @@ export const ErrorDetectionCorrection = forwardRef<
                 >
                   Apply Correction
                 </Button>
-                <Button
-                  variant="secondary"
-                  icon="stylus"
-                  onClick={() => handlePractice(index, "grammar", grammarError.errorPosition)}
-                >
-                  Practice
-                </Button>
+                {condition !== "non-ai" && (
+                  <Button
+                    variant="secondary"
+                    icon="stylus"
+                    onClick={() => handlePractice(index, "grammar", grammarError.errorPosition)}
+                  >
+                    Practice
+                  </Button>
+                )}
                 <Button
                   variant="cancel"
                   icon="block"

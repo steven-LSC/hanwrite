@@ -174,6 +174,9 @@ export interface ToolState {
   "reference-panel": ReferencePanelData | null;
 }
 
+// User Condition 型別
+export type UserCondition = "full" | "non-ai";
+
 // Outline Generator 相關型別
 export type OutlineSectionType = "introduction" | "body" | "conclusion";
 

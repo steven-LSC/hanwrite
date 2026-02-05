@@ -19,6 +19,7 @@ model User {
   password          String
   responseLanguage  String            @default("繁體中文")
   openaiModel       String            @default("gpt-4.1-mini")
+  condition         String            @default("full")
   mindmaps          Mindmap[]
   writings          Writing[]
   behaviors         UserBehavior[]

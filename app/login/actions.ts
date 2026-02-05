@@ -24,7 +24,8 @@ export async function loginAction(formData: FormData) {
     username: user.username, 
     userId: user.id,
     responseLanguage: user.responseLanguage,
-    openaiModel: user.openaiModel
+    openaiModel: user.openaiModel,
+    condition: user.condition
   })
 
   // 跳轉到文章編輯頁
@@ -34,14 +35,18 @@ export async function loginAction(formData: FormData) {
 export async function signUpAction(formData: FormData) {
   const account = formData.get('account') as string
   const password = formData.get('password') as string
+  const condition = (formData.get('condition') as string) || 'full'
 
   // 驗證輸入
   if (!account || !password) {
     return { error: 'Please fill in all fields.' }
   }
 
+  // 驗證 condition 值
+  const validCondition = condition === 'non-ai' ? 'non-ai' : 'full'
+
   // 創建新使用者
-  const result = await createUser(account, password)
+  const result = await createUser(account, password, validCondition)
   
   if (!result.success) {
     return { error: result.error || 'Failed to create account.' }

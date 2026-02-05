@@ -12,6 +12,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { FocusProvider, useFocus, SidebarRef } from "./focus-context";
 import { UnsavedProvider, useUnsaved } from "./unsaved-context";
 import { EditorProvider } from "./editor-context";
+import { UserProvider } from "./user-context";
 import { RecentWriting } from "@/lib/types";
 import { getRecentWritings } from "@/lib/data/writings";
 import { clearAuthCookie } from "@/lib/auth";
@@ -390,12 +391,14 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   return (
-    <FocusProvider>
-      <UnsavedProvider>
-        <EditorProvider>
-          <MainLayoutContent>{children}</MainLayoutContent>
-        </EditorProvider>
-      </UnsavedProvider>
-    </FocusProvider>
+    <UserProvider>
+      <FocusProvider>
+        <UnsavedProvider>
+          <EditorProvider>
+            <MainLayoutContent>{children}</MainLayoutContent>
+          </EditorProvider>
+        </UnsavedProvider>
+      </FocusProvider>
+    </UserProvider>
   );
 }

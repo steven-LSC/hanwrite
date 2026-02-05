@@ -11,21 +11,6 @@ export function MindmapNode({ data, selected, id, readonly = false }: MindmapNod
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(data.label as string);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
-  // Callback ref 用於確保 textarea 渲染後立即聚焦
-  const setTextareaRef = (element: HTMLTextAreaElement | null) => {
-    textareaRef.current = element;
-    // 如果是新 node，立即聚焦
-    if (element && data.isNew) {
-      // 使用 setTimeout 確保在 React 完成渲染後再聚焦
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-          textareaRef.current.setSelectionRange(0, 0);
-        }
-      }, 0);
-    }
-  };
 
   // 如果是新 node，自動進入編輯模式（readonly 模式下不允許）
   useEffect(() => {
@@ -80,23 +65,42 @@ export function MindmapNode({ data, selected, id, readonly = false }: MindmapNod
     }
   };
 
-  // 聚焦邏輯：當進入編輯模式時自動聚焦，特別是新 node 被選中時
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setLabel(e.target.value);
+    // 不手動設置游標位置，讓瀏覽器自動處理
+    // 我們只需要確保 useEffect 不會在輸入過程中重置游標
+  };
+
+  // 聚焦邏輯：只在第一次進入編輯模式時自動聚焦和設置游標位置
+  // 使用 nodeId 來追蹤每個 node 的初始化狀態，避免 data.isNew 改變時重新初始化
+  const initializedNodeIdRef = useRef<string | null>(null);
+  
   useEffect(() => {
-    if (isEditing && textareaRef.current) {
+    // 當離開編輯模式時重置標記
+    if (!isEditing) {
+      initializedNodeIdRef.current = null;
+      return;
+    }
+    
+    // 只在第一次進入編輯模式時初始化，且只在 nodeId 改變時重新初始化
+    if (isEditing && textareaRef.current && initializedNodeIdRef.current !== id) {
       // 使用雙重 requestAnimationFrame 和 setTimeout 確保 DOM 完全渲染
       const focusTimeout = setTimeout(() => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            if (textareaRef.current) {
+            if (textareaRef.current && initializedNodeIdRef.current !== id) {
               textareaRef.current.focus();
               // 確保聚焦成功
               if (document.activeElement === textareaRef.current) {
                 if (data.isNew) {
+                  // 新 node：游標在開頭
                   textareaRef.current.setSelectionRange(0, 0);
                 } else {
+                  // 編輯現有 node：游標在結尾
                   const length = textareaRef.current.value.length;
                   textareaRef.current.setSelectionRange(length, length);
                 }
+                initializedNodeIdRef.current = id;
               }
             }
           });
@@ -105,7 +109,7 @@ export function MindmapNode({ data, selected, id, readonly = false }: MindmapNod
 
       return () => clearTimeout(focusTimeout);
     }
-  }, [isEditing, data.isNew, selected]);
+  }, [isEditing, id, data.isNew]);
 
   useEffect(() => {
     setLabel(data.label as string);
@@ -149,15 +153,14 @@ export function MindmapNode({ data, selected, id, readonly = false }: MindmapNod
 
       {isEditing ? (
         <textarea
-          ref={setTextareaRef}
+          ref={textareaRef}
           value={label}
-          onChange={(e) => {
-            setLabel(e.target.value);
-          }}
+          onChange={handleChange}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           onDoubleClick={handleTextDoubleClick}
           tabIndex={0}
+          dir="ltr"
           {...(!!data.isNew && !readonly ? { autoFocus: true } : {})}
           className="bg-transparent outline-none text-(--color-text-secondary) text-[14px] font-medium text-center resize-none w-full overflow-hidden whitespace-nowrap flex items-center"
           style={{

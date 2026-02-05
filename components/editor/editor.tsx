@@ -25,6 +25,7 @@ import {
 } from "@/lib/types";
 import { useFocus } from "@/app/(main)/focus-context";
 import { useEditor, ErrorPosition } from "@/app/(main)/editor-context";
+import { useUser } from "@/app/(main)/user-context";
 import { logBehavior } from "@/lib/log-behavior";
 import { useWritingProgress } from "@/lib/hooks/use-writing-progress";
 
@@ -57,6 +58,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
   ) => {
     const { isFocusMode, toggleFocus, checkAndSetWritingState, activityState, toolPanelRef } = useFocus();
     const { editorHighlightRef, editorContentRef, editorClickHandlerRef } = useEditor();
+    const { condition } = useUser();
     const [title, setTitle] = useState(initialTitle);
     const [content, setContent] = useState(initialContent);
     const [isSaving, setIsSaving] = useState(false);
@@ -721,6 +723,14 @@ export const Editor = forwardRef<EditorRef, EditorProps>(
           // 但反白功能應該正常運作
           if (showContextMenu && menuStage !== "initial") {
             // Paraphrase/Expansion Hint 顯示時，保持反白效果但不改變選單狀態
+            editor.focus();
+            setSelectionRange(editor, start, end);
+            return;
+          }
+
+          // non-ai 使用者不顯示 context menu
+          if (condition === "non-ai") {
+            // 只保持反白效果，不顯示選單
             editor.focus();
             setSelectionRange(editor, start, end);
             return;

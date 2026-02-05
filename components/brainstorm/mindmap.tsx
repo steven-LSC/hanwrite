@@ -274,9 +274,21 @@ export function Mindmap({
 
   const handleNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChangeInternal>[0]) => {
-      onNodesChangeInternal(changes);
+      // 過濾掉刪除 root node 的操作
+      const filteredChanges = changes.filter((change) => {
+        // 如果是刪除操作，檢查是否為 root node
+        if (change.type === "remove") {
+          const nodeToDelete = nodes.find((n) => n.id === change.id);
+          // 如果是 root node（沒有 parentId），阻止刪除
+          if (nodeToDelete && !nodeToDelete.data.parentId) {
+            return false;
+          }
+        }
+        return true;
+      });
+      onNodesChangeInternal(filteredChanges);
     },
-    [onNodesChangeInternal]
+    [onNodesChangeInternal, nodes]
   );
 
   // 處理刪除節點（包含所有子節點）
@@ -447,7 +459,10 @@ export function Mindmap({
           ? undefined
           : (deleted) => {
             // 當用戶按下 Delete 鍵時，刪除選中的節點
-            deleted.forEach((node) => handleDeleteNode(node.id));
+            // 過濾掉 root node（沒有 parentId 的節點），不允許刪除
+            deleted
+              .filter((node) => node.data.parentId)
+              .forEach((node) => handleDeleteNode(node.id));
           }
       }
       onPaneClick={readonly ? undefined : handlePaneClick}

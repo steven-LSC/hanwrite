@@ -19,6 +19,7 @@ import {
 } from "@/lib/types";
 import { logBehavior } from "@/lib/log-behavior";
 import { useFocus } from "@/app/(main)/focus-context";
+import { useUser } from "@/app/(main)/user-context";
 
 type ToolType =
   | "reference-panel"
@@ -53,6 +54,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
   const params = useParams();
   const writingId = params.writingId as string | undefined;
   const { setActivityState } = useFocus();
+  const { condition } = useUser();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   // 工具狀態管理（一次只記住一個文章的狀態）
@@ -384,7 +386,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
     setActivityState("tool-using");
   };
 
-  // 工具選項資料結構（根據 session 狀態過濾 usage）
+  // 工具選項資料結構（根據 session 狀態過濾 usage，根據 condition 過濾 AI 工具）
   const toolOptions = [
     {
       category: "Writing Support",
@@ -394,11 +396,16 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
           icon: "folder_open",
           title: "Reference Panel",
         },
-        {
-          id: "expression-builder" as ToolType,
-          icon: "build",
-          title: "Expression Builder",
-        },
+        // non-ai 使用者隱藏 expression-builder
+        ...(condition !== "non-ai"
+          ? [
+            {
+              id: "expression-builder" as ToolType,
+              icon: "build",
+              title: "Expression Builder",
+            },
+          ]
+          : []),
       ],
     },
     {
@@ -409,11 +416,16 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
           icon: "wand_shine",
           title: "AI Analysis",
         },
-        {
-          id: "reverse-outlining" as ToolType,
-          icon: "multiple_stop",
-          title: "Reverse Outlining",
-        },
+        // non-ai 使用者隱藏 reverse-outlining
+        ...(condition !== "non-ai"
+          ? [
+            {
+              id: "reverse-outlining" as ToolType,
+              icon: "multiple_stop",
+              title: "Reverse Outlining",
+            },
+          ]
+          : []),
       ],
     },
     {
@@ -490,32 +502,44 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
                 </div>
 
                 {/* 左側動態按鈕組 */}
-                {config.leftButtons.map((button, index) => (
-                  <Button
-                    key={index}
-                    variant={button.variant}
-                    icon={button.icon}
-                    onClick={() => {
-                      // 如果是 AI Analysis 的 Report 按鈕
-                      if (
-                        currentTool === "ai-analysis" &&
-                        button.label === "Report"
-                      ) {
-                        // 記錄 open 時把 report 資料帶進去
-                        if (toolState["ai-analysis"]) {
-                          logBehavior("proficiency-report-open", toolState["ai-analysis"]);
-                        } else {
-                          logBehavior("proficiency-report-open");
+                {config.leftButtons
+                  .filter((button) => {
+                    // non-ai 使用者隱藏 Report 按鈕
+                    if (
+                      condition === "non-ai" &&
+                      currentTool === "ai-analysis" &&
+                      button.label === "Report"
+                    ) {
+                      return false;
+                    }
+                    return true;
+                  })
+                  .map((button, index) => (
+                    <Button
+                      key={index}
+                      variant={button.variant}
+                      icon={button.icon}
+                      onClick={() => {
+                        // 如果是 AI Analysis 的 Report 按鈕
+                        if (
+                          currentTool === "ai-analysis" &&
+                          button.label === "Report"
+                        ) {
+                          // 記錄 open 時把 report 資料帶進去
+                          if (toolState["ai-analysis"]) {
+                            logBehavior("proficiency-report-open", toolState["ai-analysis"]);
+                          } else {
+                            logBehavior("proficiency-report-open");
+                          }
+                          if (aiAnalysisRef.current) {
+                            aiAnalysisRef.current.openReportModal();
+                          }
                         }
-                        if (aiAnalysisRef.current) {
-                          aiAnalysisRef.current.openReportModal();
-                        }
-                      }
-                    }}
-                  >
-                    {button.label}
-                  </Button>
-                ))}
+                      }}
+                    >
+                      {button.label}
+                    </Button>
+                  ))}
               </div>
             ) : (
               <div className="relative" ref={dropdownRef}>

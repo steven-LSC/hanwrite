@@ -12,7 +12,7 @@ const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 // 7 days in seconds
 export async function verifyUser(
   account: string,
   password: string
-): Promise<{ id: string; username: string; responseLanguage: string; openaiModel: string } | null> {
+): Promise<{ id: string; username: string; responseLanguage: string; openaiModel: string; condition: string } | null> {
   try {
     const user = await prisma.user.findUnique({
       where: { username: account }
@@ -31,7 +31,8 @@ export async function verifyUser(
       id: user.id,
       username: user.username,
       responseLanguage: user.responseLanguage,
-      openaiModel: user.openaiModel
+      openaiModel: user.openaiModel,
+      condition: user.condition || 'full'
     }
   } catch (error) {
     console.error('驗證使用者時發生錯誤:', error)
@@ -47,13 +48,15 @@ export async function setAuthCookie(user: {
   userId: string
   responseLanguage: string
   openaiModel: string
+  condition: string
 }): Promise<void> {
   const cookieStore = await cookies()
   const userData = JSON.stringify({
     username: user.username,
     userId: user.userId,
     responseLanguage: user.responseLanguage,
-    openaiModel: user.openaiModel
+    openaiModel: user.openaiModel,
+    condition: user.condition
   })
 
   cookieStore.set(COOKIE_NAME, userData, {
@@ -72,6 +75,7 @@ export async function getAuthUser(): Promise<{
   userId: string
   responseLanguage: string
   openaiModel: string
+  condition: string
 } | null> {
   const cookieStore = await cookies()
   const authCookie = cookieStore.get(COOKIE_NAME)
@@ -91,7 +95,8 @@ export async function getAuthUser(): Promise<{
         username: parsed.username,
         userId: parsed.userId,
         responseLanguage: parsed.responseLanguage,
-        openaiModel: parsed.openaiModel
+        openaiModel: parsed.openaiModel,
+        condition: parsed.condition || 'full'
       }
     }
 
@@ -107,7 +112,8 @@ export async function getAuthUser(): Promise<{
       username: parsed.username,
       userId: user.id,
       responseLanguage: user.responseLanguage,
-      openaiModel: user.openaiModel
+      openaiModel: user.openaiModel,
+      condition: user.condition || 'full'
     }
   } catch {
     return null
@@ -126,7 +132,7 @@ export async function clearAuthCookie(): Promise<void> {
  * 創建新使用者
  * @returns 成功返回 true，使用者名稱已存在返回 false
  */
-export async function createUser(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+export async function createUser(username: string, password: string, condition: string = 'full'): Promise<{ success: boolean; error?: string }> {
   try {
     // 檢查使用者名稱是否已存在
     const existingUser = await prisma.user.findUnique({
@@ -137,11 +143,17 @@ export async function createUser(username: string, password: string): Promise<{ 
       return { success: false, error: 'Username already exists.' }
     }
 
+    // 驗證 condition 值
+    if (condition !== 'full' && condition !== 'non-ai') {
+      condition = 'full'
+    }
+
     // 創建新使用者（使用預設值）
     await prisma.user.create({
       data: {
         username,
-        password
+        password,
+        condition
       }
     })
 
@@ -160,18 +172,26 @@ export async function updateUserSettings(
   settings: {
     responseLanguage?: string
     openaiModel?: string
+    condition?: string
   }
 ): Promise<{
   responseLanguage: string
   openaiModel: string
+  condition: string
 } | null> {
   try {
-    const updateData: { responseLanguage?: string; openaiModel?: string } = {}
+    const updateData: { responseLanguage?: string; openaiModel?: string; condition?: string } = {}
     if (settings.responseLanguage) {
       updateData.responseLanguage = settings.responseLanguage
     }
     if (settings.openaiModel) {
       updateData.openaiModel = settings.openaiModel
+    }
+    if (settings.condition) {
+      // 驗證 condition 值
+      if (settings.condition === 'full' || settings.condition === 'non-ai') {
+        updateData.condition = settings.condition
+      }
     }
 
     const updatedUser = await prisma.user.update({
@@ -179,7 +199,8 @@ export async function updateUserSettings(
       data: updateData,
       select: {
         responseLanguage: true,
-        openaiModel: true
+        openaiModel: true,
+        condition: true
       }
     })
 
@@ -194,7 +215,8 @@ export async function updateUserSettings(
             username: parsed.username,
             userId: parsed.userId,
             responseLanguage: updatedUser.responseLanguage,
-            openaiModel: updatedUser.openaiModel
+            openaiModel: updatedUser.openaiModel,
+            condition: updatedUser.condition || 'full'
           })
           cookieStore.set(COOKIE_NAME, userData, {
             httpOnly: false,
@@ -208,7 +230,11 @@ export async function updateUserSettings(
       }
     }
 
-    return updatedUser
+    return {
+      responseLanguage: updatedUser.responseLanguage,
+      openaiModel: updatedUser.openaiModel,
+      condition: updatedUser.condition || 'full'
+    }
   } catch (error) {
     console.error('更新使用者設定時發生錯誤:', error)
     return null

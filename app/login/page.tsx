@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
   const [account, setAccount] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [condition, setCondition] = useState<string>("full");
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -21,6 +22,7 @@ export default function LoginPage() {
   useEffect(() => {
     setAccount("");
     setPassword("");
+    setCondition("full");
     setError("");
   }, [mode]);
 
@@ -32,6 +34,9 @@ export default function LoginPage() {
     const formData = new FormData();
     formData.append("account", account);
     formData.append("password", password);
+    if (mode === "signup") {
+      formData.append("condition", condition);
+    }
 
     const result = mode === "login"
       ? await loginAction(formData)
@@ -108,6 +113,45 @@ export default function LoginPage() {
               className="w-full rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm text-[#333] placeholder:text-[#999] focus:border-[#1BA881] focus:outline-none focus:ring-1 focus:ring-[#1BA881] disabled:bg-gray-100"
             />
           </div>
+
+          {/* Condition 選擇（僅在註冊模式顯示） */}
+          {mode === "signup" && (
+            <div className="flex flex-col gap-[5px]">
+              <label className="block text-sm font-medium text-(--color-text-secondary)">
+                Account Type
+              </label>
+              <div className="flex gap-[20px]">
+                <label className="flex items-center gap-[8px] cursor-pointer">
+                  <input
+                    type="radio"
+                    name="condition"
+                    value="full"
+                    checked={condition === "full"}
+                    onChange={(e) => setCondition(e.target.value)}
+                    disabled={isLoading}
+                    className="w-4 h-4 text-[#1BA881] focus:ring-[#1BA881]"
+                  />
+                  <span className="text-sm text-(--color-text-secondary)">
+                    Full (All Features)
+                  </span>
+                </label>
+                <label className="flex items-center gap-[8px] cursor-pointer">
+                  <input
+                    type="radio"
+                    name="condition"
+                    value="non-ai"
+                    checked={condition === "non-ai"}
+                    onChange={(e) => setCondition(e.target.value)}
+                    disabled={isLoading}
+                    className="w-4 h-4 text-[#1BA881] focus:ring-[#1BA881]"
+                  />
+                  <span className="text-sm text-(--color-text-secondary)">
+                    Non-AI (No AI Features)
+                  </span>
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* 錯誤訊息 */}
           <p className="min-h-[20px] text-sm text-[#E53E3E]">{error}</p>
