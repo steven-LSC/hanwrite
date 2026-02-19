@@ -2,10 +2,120 @@ import { NextRequest, NextResponse } from "next/server";
 import { GrammarErrorInput, VocabErrorInput } from "@/lib/types";
 import { getResponseLanguage, AI_CONFIGS } from "@/lib/ai-config";
 import OpenAI from "openai";
+import https from "node:https";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+// 強制使用 Node.js runtime，確保可使用 node:https 客製 TLS 設定
+export const runtime = "nodejs";
+
+/**
+ * Bareun API 當前回傳的憑證鏈缺少 intermediate cert，會造成 Node.js 出現
+ * UNABLE_TO_VERIFY_LEAF_SIGNATURE。這裡明確提供 intermediate CA 供驗證。
+ */
+const BAREUN_INTERMEDIATE_CA_PEM = `-----BEGIN CERTIFICATE-----
+MIIGTDCCBDSgAwIBAgIQOXpmzCdWNi4NqofKbqvjsTANBgkqhkiG9w0BAQwFADBf
+MQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMTYwNAYDVQQD
+Ey1TZWN0aWdvIFB1YmxpYyBTZXJ2ZXIgQXV0aGVudGljYXRpb24gUm9vdCBSNDYw
+HhcNMjEwMzIyMDAwMDAwWhcNMzYwMzIxMjM1OTU5WjBgMQswCQYDVQQGEwJHQjEY
+MBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMTcwNQYDVQQDEy5TZWN0aWdvIFB1Ymxp
+YyBTZXJ2ZXIgQXV0aGVudGljYXRpb24gQ0EgRFYgUjM2MIIBojANBgkqhkiG9w0B
+AQEFAAOCAY8AMIIBigKCAYEAljZf2HIz7+SPUPQCQObZYcrxLTHYdf1ZtMRe7Yeq
+RPSwygz16qJ9cAWtWNTcuICc++p8Dct7zNGxCpqmEtqifO7NvuB5dEVexXn9RFFH
+12Hm+NtPRQgXIFjx6MSJcNWuVO3XGE57L1mHlcQYj+g4hny90aFh2SCZCDEVkAja
+EMMfYPKuCjHuuF+bzHFb/9gV8P9+ekcHENF2nR1efGWSKwnfG5RawlkaQDpRtZTm
+M64TIsv/r7cyFO4nSjs1jLdXYdz5q3a4L0NoabZfbdxVb+CUEHfB0bpulZQtH1Rv
+38e/lIdP7OTTIlZh6OYL6NhxP8So0/sht/4J9mqIGxRFc0/pC8suja+wcIUna0HB
+pXKfXTKpzgis+zmXDL06ASJf5E4A2/m+Hp6b84sfPAwQ766rI65mh50S0Di9E3Pn
+2WcaJc+PILsBmYpgtmgWTR9eV9otfKRUBfzHUHcVgarub/XluEpRlTtZudU5xbFN
+xx/DgMrXLUAPaI60fZ6wA+PTAgMBAAGjggGBMIIBfTAfBgNVHSMEGDAWgBRWc1hk
+lfmSGrASKgRieaFAFYghSTAdBgNVHQ4EFgQUaMASFhgOr872h6YyV6NGUV3LBycw
+DgYDVR0PAQH/BAQDAgGGMBIGA1UdEwEB/wQIMAYBAf8CAQAwHQYDVR0lBBYwFAYI
+KwYBBQUHAwEGCCsGAQUFBwMCMBsGA1UdIAQUMBIwBgYEVR0gADAIBgZngQwBAgEw
+VAYDVR0fBE0wSzBJoEegRYZDaHR0cDovL2NybC5zZWN0aWdvLmNvbS9TZWN0aWdv
+UHVibGljU2VydmVyQXV0aGVudGljYXRpb25Sb290UjQ2LmNybDCBhAYIKwYBBQUH
+AQEEeDB2ME8GCCsGAQUFBzAChkNodHRwOi8vY3J0LnNlY3RpZ28uY29tL1NlY3Rp
+Z29QdWJsaWNTZXJ2ZXJBdXRoZW50aWNhdGlvblJvb3RSNDYucDdjMCMGCCsGAQUF
+BzABhhdodHRwOi8vb2NzcC5zZWN0aWdvLmNvbTANBgkqhkiG9w0BAQwFAAOCAgEA
+YtOC9Fy+TqECFw40IospI92kLGgoSZGPOSQXMBqmsGWZUQ7rux7cj1du6d9rD6C8
+ze1B2eQjkrGkIL/OF1s7vSmgYVafsRoZd/IHUrkoQvX8FZwUsmPu7amgBfaY3g+d
+q1x0jNGKb6I6Bzdl6LgMD9qxp+3i7GQOnd9J8LFSietY6Z4jUBzVoOoz8iAU84OF
+h2HhAuiPw1ai0VnY38RTI+8kepGWVfGxfBWzwH9uIjeooIeaosVFvE8cmYUB4TSH
+5dUyD0jHct2+8ceKEtIoFU/FfHq/mDaVnvcDCZXtIgitdMFQdMZaVehmObyhRdDD
+4NQCs0gaI9AAgFj4L9QtkARzhQLNyRf87Kln+YU0lgCGr9HLg3rGO8q+Y4ppLsOd
+unQZ6ZxPNGIfOApbPVf5hCe58EZwiWdHIMn9lPP6+F404y8NNugbQixBber+x536
+WrZhFZLjEkhp7fFXf9r32rNPfb74X/U90Bdy4lzp3+X1ukh1BuMxA/EEhDoTOS3l
+7ABvc7BYSQubQ2490OcdkIzUh3ZwDrakMVrbaTxUM2p24N6dB+ns2zptWCva6jzW
+r8IWKIMxzxLPv5Kt3ePKcUdvkBU/smqujSczTzzSjIoR5QqQA6lN1ZRSnuHIWCvh
+JEltkYnTAH41QJ6SAWO66GrrUESwN/cgZzL4JLEqz1Y=
+-----END CERTIFICATE-----`;
+
+async function callBareunApi(
+  content: string,
+  apiKey: string
+): Promise<BareunApiResponse> {
+  const requestBody = JSON.stringify({
+    document: { content },
+  });
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        protocol: "https:",
+        hostname: "api.bareun.ai",
+        path: "/bareun.RevisionService/CorrectError",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+          "Content-Length": Buffer.byteLength(requestBody),
+        },
+        timeout: 15000,
+        ca: BAREUN_INTERMEDIATE_CA_PEM,
+      },
+      (res) => {
+        let responseText = "";
+        res.setEncoding("utf8");
+
+        res.on("data", (chunk) => {
+          responseText += chunk;
+        });
+
+        res.on("end", () => {
+          const statusCode = res.statusCode ?? 500;
+          if (statusCode < 200 || statusCode >= 300) {
+            reject(
+              new Error(
+                `Bareun API error: ${statusCode} - ${responseText || "No response body"}`
+              )
+            );
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(responseText) as BareunApiResponse;
+            resolve(parsed);
+          } catch {
+            reject(new Error("Bareun API response is not valid JSON"));
+          }
+        });
+      }
+    );
+
+    req.on("timeout", () => {
+      req.destroy(new Error("Bareun API request timed out"));
+    });
+
+    req.on("error", (error) => {
+      reject(error);
+    });
+
+    req.write(requestBody);
+    req.end();
+  });
+}
 
 /**
  * Bareun API 回應型別
@@ -391,28 +501,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 使用 fetch 發送請求（在 Vercel 上比 https.request 更能正確處理 SSL 憑證）
-    const bareunResponse = await fetch(
-      "https://api.bareun.ai/bareun.RevisionService/CorrectError",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": process.env.BAREUN_API_KEY!,
-        },
-        body: JSON.stringify({
-          document: { content },
-        }),
-      }
-    );
-
-    if (!bareunResponse.ok) {
-      const errorText = await bareunResponse.text();
-      console.error(`[Error Detection] Bareun API 錯誤: ${bareunResponse.status} - ${errorText}`);
-      throw new Error(`Bareun API error: ${bareunResponse.status}`);
-    }
-
-    const bareunData: BareunApiResponse = await bareunResponse.json();
+    const bareunData = await callBareunApi(content, process.env.BAREUN_API_KEY!);
     console.log(`[Error Detection] Bareun API 回應:`, JSON.stringify(bareunData, null, 2));
 
     // 解析文法錯誤
