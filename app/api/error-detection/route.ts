@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { GrammarErrorInput, VocabErrorInput } from "@/lib/types";
 import { getResponseLanguage, AI_CONFIGS } from "@/lib/ai-config";
 import OpenAI from "openai";
-import https from "https";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -392,59 +391,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 使用 Node.js https 模組發送請求，處理 SSL 憑證問題
-    const requestBody = JSON.stringify({
-      document: {
-        content: content,
-      },
-    });
-
-    const bareunData: BareunApiResponse = await new Promise((resolve, reject) => {
-      const options = {
-        hostname: "api.bareun.ai",
-        path: "/bareun.RevisionService/CorrectError",
+    // 使用 fetch 發送請求（在 Vercel 上比 https.request 更能正確處理 SSL 憑證）
+    const bareunResponse = await fetch(
+      "https://api.bareun.ai/bareun.RevisionService/CorrectError",
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "api-key": process.env.BAREUN_API_KEY!,
-          "Content-Length": Buffer.byteLength(requestBody),
         },
-        // 在開發環境中暫時放寬 SSL 驗證
-        // 注意：生產環境應該使用正確的 CA 憑證
-        rejectUnauthorized: process.env.NODE_ENV === "production",
-      };
+        body: JSON.stringify({
+          document: { content },
+        }),
+      }
+    );
 
-      const req = https.request(options, (res) => {
-        let data = "";
+    if (!bareunResponse.ok) {
+      const errorText = await bareunResponse.text();
+      console.error(`[Error Detection] Bareun API 錯誤: ${bareunResponse.status} - ${errorText}`);
+      throw new Error(`Bareun API error: ${bareunResponse.status}`);
+    }
 
-        res.on("data", (chunk) => {
-          data += chunk;
-        });
-
-        res.on("end", () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              const parsedData: BareunApiResponse = JSON.parse(data);
-              resolve(parsedData);
-            } catch (parseError) {
-              console.error(`[Error Detection] 解析回應失敗:`, parseError);
-              reject(new Error("Failed to parse Bareun API response"));
-            }
-          } else {
-            console.error(`[Error Detection] Bareun API 錯誤: ${res.statusCode} - ${data}`);
-            reject(new Error(`Bareun API error: ${res.statusCode}`));
-          }
-        });
-      });
-
-      req.on("error", (error) => {
-        console.error(`[Error Detection] 請求錯誤:`, error);
-        reject(error);
-      });
-
-      req.write(requestBody);
-      req.end();
-    });
+    const bareunData: BareunApiResponse = await bareunResponse.json();
     console.log(`[Error Detection] Bareun API 回應:`, JSON.stringify(bareunData, null, 2));
 
     // 解析文法錯誤
