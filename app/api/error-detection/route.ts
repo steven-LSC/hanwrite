@@ -89,6 +89,37 @@ async function callBareunApi(
   content: string,
   apiKey: string
 ): Promise<BareunApiResponse> {
+  const allowInsecureTlsFallback =
+    process.env.BAREUN_INSECURE_TLS_FALLBACK !== "false";
+
+  try {
+    return await requestBareunApi(content, apiKey, true);
+  } catch (error) {
+    if (!isTlsCertificateError(error) || !allowInsecureTlsFallback) {
+      throw error;
+    }
+
+    console.warn(
+      "[Error Detection] Bareun TLS certificate verification failed; retrying with insecure TLS fallback."
+    );
+    return requestBareunApi(content, apiKey, false);
+  }
+}
+
+function isTlsCertificateError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const code = (error as Error & { code?: string }).code;
+  return (
+    code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE" ||
+    code === "UNABLE_TO_GET_ISSUER_CERT"
+  );
+}
+
+function requestBareunApi(
+  content: string,
+  apiKey: string,
+  strictTls: boolean
+): Promise<BareunApiResponse> {
   const requestBody = JSON.stringify({
     document: { content },
   });
@@ -106,7 +137,9 @@ async function callBareunApi(
           "Content-Length": Buffer.byteLength(requestBody),
         },
         timeout: 15000,
-        ca: [BAREUN_INTERMEDIATE_CA_PEM, BAREUN_ROOT_CA_PEM],
+        ...(strictTls
+          ? { ca: [BAREUN_INTERMEDIATE_CA_PEM, BAREUN_ROOT_CA_PEM] }
+          : { rejectUnauthorized: false }),
       },
       (res) => {
         let responseText = "";
@@ -121,7 +154,9 @@ async function callBareunApi(
           if (statusCode < 200 || statusCode >= 300) {
             reject(
               new Error(
-                `Bareun API error: ${statusCode} - ${responseText || "No response body"}`
+                `Bareun API error (${strictTls ? "strict" : "insecure"} TLS): ${statusCode} - ${
+                  responseText || "No response body"
+                }`
               )
             );
             return;
@@ -534,7 +569,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const bareunData = await callBareunApi(content, process.env.BAREUN_API_KEY!);
+    let bareunData: BareunApiResponse;
+    try {
+      bareunData = await callBareunApi(content, process.env.BAREUN_API_KEY!);
+    } catch (error) {
+      console.error("[Error Detection][Stage: bareun-api] 呼叫失敗:", error);
+      throw error;
+    }
     console.log(`[Error Detection] Bareun API 回應:`, JSON.stringify(bareunData, null, 2));
 
     // 解析文法錯誤
