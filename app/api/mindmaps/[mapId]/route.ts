@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/lib/generated/prisma/client";
 import { getAuthUser } from "@/lib/auth";
 
 const getUserId = async (): Promise<string | null> => {
@@ -53,7 +54,7 @@ export async function PUT(
   const mapId = params.mapId;
 
   const body = await request.json().catch(() => ({}));
-  const updates: { title?: string; nodes?: unknown } = {};
+  const updates: Prisma.MindmapUpdateInput = {};
 
   if (typeof body?.title === "string") {
     updates.title = body.title.trim();
