@@ -11,6 +11,7 @@ export interface IdeaPartnerCardResponse {
   nodeId: string;
   title: string;
   description: string;
+  example?: string;
 }
 
 /**
@@ -121,6 +122,9 @@ export async function POST(request: NextRequest) {
       }
       if (!card.description || typeof card.description !== "string") {
         throw new Error("Invalid card description");
+      }
+      if (card.example !== undefined && typeof card.example !== "string") {
+        throw new Error("Invalid card example");
       }
 
       // 驗證 nodeId 是否存在於 treeNodes 中

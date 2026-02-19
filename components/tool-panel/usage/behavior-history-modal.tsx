@@ -302,6 +302,16 @@ export function BehaviorHistoryModal({
               <p className="font-medium text-[14px] text-(--color-text-secondary)">
                 {card.description}
               </p>
+              {card.example && (
+                <>
+                  <p className="text-[12px] text-(--color-text-tertiary)">
+                    Example:
+                  </p>
+                  <p className="font-medium text-[12px] text-(--color-text-tertiary)">
+                    {card.example}
+                  </p>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -317,6 +327,7 @@ export function BehaviorHistoryModal({
         nodeId: string;
         title: string;
         description: string;
+        example?: string;
       };
     };
 
@@ -338,6 +349,16 @@ export function BehaviorHistoryModal({
         <p className="font-medium text-[14px] text-(--color-text-secondary)">
           {resultData.source.description}
         </p>
+        {resultData.source.example && (
+          <>
+            <p className="text-[12px] text-(--color-text-tertiary)">
+              Example:
+            </p>
+            <p className="font-medium text-[12px] text-(--color-text-tertiary)">
+              {resultData.source.example}
+            </p>
+          </>
+        )}
         <p className="text-[12px] text-(--color-text-tertiary)">
           Input:
         </p>
@@ -355,6 +376,7 @@ export function BehaviorHistoryModal({
         nodeId: string;
         title: string;
         description: string;
+        example?: string;
         idea: string;
       };
     };
@@ -374,6 +396,16 @@ export function BehaviorHistoryModal({
         <p className="font-medium text-[14px] text-(--color-text-secondary)">
           {resultData.card.description}
         </p>
+        {resultData.card.example && (
+          <>
+            <p className="text-[12px] text-(--color-text-tertiary)">
+              Example:
+            </p>
+            <p className="font-medium text-[12px] text-(--color-text-tertiary)">
+              {resultData.card.example}
+            </p>
+          </>
+        )}
       </div>
     );
   };

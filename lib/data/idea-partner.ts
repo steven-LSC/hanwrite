@@ -4,6 +4,7 @@ export interface IdeaPartnerCard {
   nodeId: string;
   title: string;
   description: string;
+  example?: string;
   idea: string;
 }
 
@@ -36,10 +37,11 @@ export async function getIdeaPartnerCards(
     const cards = data.cards || [];
 
     // 將 API 回傳的格式轉換成 IdeaPartnerCard 格式（加上 idea 欄位）
-    const transformedCards = cards.map((card: { nodeId: string; title: string; description: string }) => ({
+    const transformedCards = cards.map((card: { nodeId: string; title: string; description: string; example?: string }) => ({
       nodeId: card.nodeId,
       title: card.title,
       description: card.description,
+      example: card.example ?? "",
       idea: "", // 使用者輸入，初始為空字串
     }));
 

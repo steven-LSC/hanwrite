@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import { Modal } from "@/components/ui/modal";
@@ -34,56 +34,56 @@ export function GrammarPracticeModal({
   const [translationQuestion, setTranslationQuestion] = useState<string | null>(null);
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
 
-  // Modal 打開時生成翻譯題目
+  // 生成翻譯題目並記錄 user-behavior（grammar-practice-generate）
+  const generateNewQuestion = useCallback(() => {
+    let cancelled = false;
+    setIsLoadingQuestion(true);
+    setTranslationQuestion(null);
+    const startTime = Date.now();
+    generateTranslationQuestion(
+      grammarName,
+      grammarError,
+      correctSentence,
+      explanation
+    )
+      .then((result) => {
+        if (!cancelled) {
+          setTranslationQuestion(result.translationQuestion);
+          logBehavior("grammar-practice-generate", {
+            grammarName,
+            grammarError,
+            correctSentence,
+            explanation,
+            translationQuestion: result.translationQuestion,
+            duration: result.duration || Date.now() - startTime,
+          });
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Failed to generate translation question:", error);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingQuestion(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [grammarName, grammarError, correctSentence, explanation]);
+
+  // Modal 打開時生成翻譯題目（僅在 isOpen 時觸發，避免 deps 含 state 導致 cleanup 取消自己的請求）
   useEffect(() => {
     if (!isOpen) {
-      // Modal 關閉時重置狀態
       setTranslationQuestion(null);
       setIsLoadingQuestion(false);
       return;
     }
-
-    // Modal 打開時，如果還沒有題目且沒有在載入中，則生成題目
-    if (!translationQuestion && !isLoadingQuestion) {
-      let cancelled = false;
-      setIsLoadingQuestion(true);
-      const startTime = Date.now();
-      generateTranslationQuestion(
-        grammarName,
-        grammarError,
-        correctSentence,
-        explanation
-      )
-        .then((result) => {
-          if (!cancelled) {
-            setTranslationQuestion(result.translationQuestion);
-            // 記錄生成題目的行為
-            logBehavior("grammar-practice-generate", {
-              grammarName,
-              grammarError,
-              correctSentence,
-              explanation,
-              translationQuestion: result.translationQuestion,
-              duration: result.duration || Date.now() - startTime,
-            });
-          }
-        })
-        .catch((error) => {
-          if (!cancelled) {
-            console.error("Failed to generate translation question:", error);
-          }
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setIsLoadingQuestion(false);
-          }
-        });
-
-      return () => {
-        cancelled = true;
-      };
-    }
-  }, [isOpen, grammarName, grammarError, correctSentence, explanation]);
+    const cancel = generateNewQuestion();
+    return cancel;
+  }, [isOpen, generateNewQuestion]);
 
   const handleCheck = async () => {
     if (!sentence.trim()) return;
@@ -114,6 +114,7 @@ export function GrammarPracticeModal({
     setSentence("");
     setCheckResult(null);
     setIsDetailedExplanationOpen(false);
+    generateNewQuestion();
   };
 
   const handleLeave = () => {

@@ -81,13 +81,18 @@ export function IdeaPartner({
       setSelectedCardNodeId(null);
       // 重新 fetch 卡片資料
       if (nodes.length > 0) {
-        const { cards: fetchedCards } = await getIdeaPartnerCards(nodes);
+        const { cards: fetchedCards, duration } = await getIdeaPartnerCards(nodes);
         setCards(fetchedCards);
         const initial: Record<string, string> = {};
         fetchedCards.forEach((card) => {
           initial[card.nodeId] = card.idea;
         });
         setIdeaInputs(initial);
+        // Update 完成後記錄 scan 行為
+        logBehavior("idea-partner-scan", {
+          cards: fetchedCards,
+          duration,
+        });
       }
     } finally {
       setIsLoading(false);
@@ -124,6 +129,7 @@ export function IdeaPartner({
           nodeId: card.nodeId,
           title: card.title,
           description: card.description,
+          example: card.example,
           idea: card.idea,
         },
       });
@@ -181,6 +187,7 @@ export function IdeaPartner({
           nodeId: card.nodeId,
           title: card.title,
           description: card.description,
+          example: card.example,
         } : null,
         prompt: card?.description || "",
         input: ideaText,
@@ -271,6 +278,11 @@ export function IdeaPartner({
                   <p className="text-(--color-text-primary) text-[14px]">
                     {card.description}
                   </p>
+                  {card.example && (
+                    <p className="text-(--color-text-tertiary) text-[12px]">
+                      Example: {card.example}
+                    </p>
+                  )}
                   <input
                     type="text"
                     value={ideaInputs[card.nodeId] || ""}

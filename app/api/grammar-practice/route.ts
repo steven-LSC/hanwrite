@@ -63,9 +63,15 @@ function cleanText(text: string): string {
 }
 
 /**
- * 從 Bareun API 回應中取得第一個文法錯誤的原始韓文 comment
+ * 從 Bareun API 回應中取得第一個文法錯誤的完整資訊
+ * 用於當使用者錯誤與目標文法無關時，以實際錯誤產生 corrective example
  */
-function getFirstGrammarErrorComment(bareunData: BareunApiResponse): string | null {
+function getFirstGrammarErrorInfo(bareunData: BareunApiResponse): {
+  grammarError: string;
+  correctSentence: string;
+  explanation: string;
+  helpId: string | null;
+} | null {
   if (!bareunData.revisedBlocks || !Array.isArray(bareunData.revisedBlocks)) {
     return null;
   }
@@ -89,9 +95,16 @@ function getFirstGrammarErrorComment(bareunData: BareunApiResponse): string | nu
     }
 
     const help = bareunData.helps?.[helpId];
-    if (help && help.comment) {
-      return cleanText(help.comment);
+    if (!help || !help.comment) {
+      continue;
     }
+
+    return {
+      grammarError: cleanText(block.origin?.content ?? block.revised ?? ""),
+      correctSentence: cleanText(block.revised ?? ""),
+      explanation: cleanText(help.comment),
+      helpId,
+    };
   }
 
   return null;
@@ -356,12 +369,10 @@ export async function POST(request: NextRequest) {
       req.end();
     });
 
-    console.log(bareunData);
-    
     // 檢查是否有文法錯誤
-    const koreanComment = getFirstGrammarErrorComment(bareunData);
+    const bareunErrorInfo = getFirstGrammarErrorInfo(bareunData);
 
-    if (!koreanComment) {
+    if (!bareunErrorInfo) {
       // 沒有錯誤，回傳成功
       const duration = Date.now() - startTime;
       console.log(`[Grammar Practice] 檢查完成，沒有錯誤，耗時: ${duration}ms`);
@@ -372,19 +383,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 有錯誤，使用 LLM 生成翻譯和 corrective example
-    // 如果提供了完整的錯誤資訊，使用這些資訊；否則使用從 Bareun API 取得的資訊
-    const errorGrammarName = grammarName || "";
-    const errorGrammarError = grammarError || "";
-    const errorCorrectSentence = correctSentence || "";
-    const errorExplanation = explanation || koreanComment;
-
+    // 有錯誤，使用 LLM 生成 corrective example 和 explanation
+    // 重要：一律使用 Bareun 偵測到的「實際錯誤」來產生回饋，而非目標文法
+    // 這樣當使用者犯的錯與練習目標無關時（例如練 으로/로 卻寫錯 을/를），
+    // 回饋會針對實際錯誤，而非錯誤地給出目標文法的範例
     const { detailedExplanation, correctiveExample, correctiveExampleHighlight } = await generateCorrectionInfo(
       sentence,
-      errorGrammarName,
-      errorGrammarError,
-      errorCorrectSentence,
-      errorExplanation,
+      bareunErrorInfo.helpId || "", // 可選，供 LLM 參考
+      bareunErrorInfo.grammarError,
+      bareunErrorInfo.correctSentence,
+      bareunErrorInfo.explanation,
       responseLanguage
     );
 

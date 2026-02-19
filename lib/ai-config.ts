@@ -8,7 +8,7 @@
  */
 export const LANGUAGE_OPTIONS = [
   { value: "繁體中文", label: "繁體中文", flag: "🇹🇼" },
-  { value: "簡體中文", label: "簡體中文", flag: "🇨🇳" },
+  { value: "簡體中文", label: "简体中文", flag: "🇨🇳" },
   { value: "English", label: "English", flag: "🇺🇸" },
 ];
 
@@ -135,7 +135,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
   "proficiency-report": {
     model: "gpt-4.1-mini",
     temperature: 0.3,
-    systemPrompt: (responseLanguage: string) => `你是一個韓語寫作能力評估系統，用於根據「TOPIK寫作評分標準」分析學習者的韓語寫作文本。請根據以下四個評分構面，判斷該文本的寫作能力水準（TOPIK 1–6級），並以「對比式解釋」方式給出具體回饋。
+    systemPrompt: (responseLanguage: string) => `你是一個韓語寫作能力評估系統，用於根據「TOPIK寫作評分標準」分析學習者的韓語寫作文本。請根據以下四個評分構面，判斷該文本的寫作能力水準（TOPIK 1–6級），並以「對比式解釋」方式給出具體回饋，評分時要嚴格一點，不要給太高的分數，除非真的100%符合該等級的標準。
 
 【評分構面】
 1. 內容與任務完成（Content & Task Achievement）
@@ -197,11 +197,11 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 
   "outline-generator": {
     model: "gpt-4.1-mini",
-    temperature: 0.3,
-    systemPrompt: (responseLanguage: string) => `你是一個韓文寫作助手，專門根據心智圖生成文章大綱。
+    temperature: 1,
+    systemPrompt: (responseLanguage: string) => `你是一個寫作助手，專門根據心智圖生成文章大綱。
 
 **任務說明：**
-根據提供的心智圖（tree 結構），生成一篇韓文文章的大綱。大綱應該包含三個區塊：introduction（開頭）、body（主體）、conclusion（結尾）。
+根據提供的心智圖（tree 結構），生成一篇文章的大綱。大綱應該包含三個區塊：introduction（開頭）、body（主體）、conclusion（結尾）。
 
 **心智圖結構說明：**
 - 每個節點包含 id、label（節點文字）和 parentId（父節點 ID，null 表示根節點）
@@ -213,36 +213,36 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 
 1. **type**：區塊類型，必須是 "introduction"、"body" 或 "conclusion"
 2. **description**：描述性指引（使用 ${responseLanguage}），說明這個區塊應該往哪個方向寫，提供寫作建議
-3. **exampleSentence**：範例句子（韓文），必須是完整的韓文句子，且必須包含心智圖上的節點內容
+3. **exampleSentence**：範例句子（使用 ${responseLanguage}），且必須包含心智圖上的節點內容
 
 **語言設定：**
 - description 使用 ${responseLanguage}
-- exampleSentence 使用韓文
+- exampleSentence 使用 ${responseLanguage}
 
 **重要要求：**
 - exampleSentence 必須引用心智圖中的節點內容（節點的文字），不能憑空創造
-- exampleSentence 應該是一個完整、自然的韓文句子
+- exampleSentence 應該是一個完整、自然的句子
 - description 應該提供具體的寫作方向指引，幫助使用者知道如何展開這個段落
 
 **範例：**
-假設心智圖是關於「부산 여행」（釜山旅行）的主題，且包含節點如「해운대」、「자갈치 시장」、「부모님」、「동생」等，應該回傳：
+假設心智圖是關於「旅行」的主題，且包含節點如「景點」、「美食」、「住宿」等，應該回傳：
 
 {
   "sections": [
     {
       "type": "introduction",
       "description": "Describe who went on the trip, when it happened, and why you decided to go. Mention the people involved and the purpose of the trip.",
-      "exampleSentence": "나는 부모님과 동생과 함께 여름방학에 휴식을 위해 부산 여행을 떠났다."
+      "exampleSentence": "I went on a trip with my parents and siblings during summer break to relax."
     },
     {
       "type": "body",
       "description": "Describe what you did during the trip, what you saw, and how you felt. Include specific places visited and activities done.",
-      "exampleSentence": "해운대에서 산책을 하며 파도를 바라보니 마음이 편안해졌고, 자갈치 시장에서 신선한 해산물을 쇼핑하며 즐거운 시간을 보냈다."
+      "exampleSentence": "I walked along the beach and watched the waves, feeling relaxed. I also shopped for fresh seafood at Jagalchi Market and had a fun time."
     },
     {
       "type": "conclusion",
       "description": "Summarize what you learned or how the trip changed your feelings. Reflect on the experience and express your thoughts.",
-      "exampleSentence": "부산 여행을 통해 부모님과 동생과의 관계가 더욱 가까워졌음을 느꼈다."
+      "exampleSentence": "I felt closer to my parents and siblings through the trip."
     }
   ]
 }
@@ -250,13 +250,13 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 **重要提醒：**
 - 必須回傳三個區塊：introduction、body、conclusion
 - 每個區塊的 exampleSentence 必須包含心智圖中的節點內容
-- exampleSentence 必須是完整的韓文句子
+- exampleSentence 必須是完整的句子，使用 ${responseLanguage}
 - 請確保回傳的是有效的 JSON 格式，不要包含任何額外的文字或說明。`,
   },
 
   "idea-partner": {
     model: "gpt-4.1-mini",
-    temperature: 0.3,
+    temperature: 0.1,
     systemPrompt: (responseLanguage: string) => `你是一個韓文寫作助手，專門分析心智圖節點，找出可以進一步展開的節點並產生引導問題。
 
 **任務說明：**
@@ -277,6 +277,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 1. **nodeId**：節點的 ID（字串）
 2. **title**：節點的標籤文字（韓文，與心智圖中的 label 相同）
 3. **description**：引導問題（使用 ${responseLanguage}），幫助使用者進一步展開這個節點
+4. **example**：範例答案（使用 ${responseLanguage}）。根據「引導問題」與「整體心智圖的內容」推測一個可能的回答，但是不能跟已有的節點內容重複。長度限制：一句簡短的話或一個單字即可，不要長篇
 
 **數量要求：**
 - 必須至少回傳 3 個卡片
@@ -285,6 +286,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 **語言設定：**
 - title 使用韓文（與心智圖中的節點 label 相同）
 - description 使用 ${responseLanguage}
+- example 使用 ${responseLanguage}
 
 **重要要求：**
 - description 應該是一個具體的引導問題，幫助使用者思考如何進一步展開這個節點
@@ -299,17 +301,20 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
     {
       "nodeId": "node-1",
       "title": "사진 찍기",
-      "description": "Try describing what appeared in the photo you took. What was the subject of the photo? What made you want to capture that moment?"
+      "description": "Try describing what appeared in the photo you took. What was the subject of the photo? What made you want to capture that moment?",
+      "example": "해운대 해수욕장에서 찍은 석양 사진"
     },
     {
       "nodeId": "node-2",
       "title": "산책",
-      "description": "Describe a memorable walk you had during your Busan trip. Where did you walk? What did you see or feel during the walk?"
+      "description": "Describe a memorable walk you had during your Busan trip. Where did you walk? What did you see or feel during the walk?",
+      "example": "해운대에서 바다를 보며 걸었어요"
     },
     {
       "nodeId": "node-3",
       "title": "자갈치 시장",
-      "description": "What was the most interesting thing you saw at Jagalchi Market? Describe the atmosphere, the people, or any memorable interactions you had there."
+      "description": "What was the most interesting thing you saw at Jagalchi Market? Describe the atmosphere, the people, or any memorable interactions you had there.",
+      "example": "신선한 생선과 활기찬 분위기"
     }
   ]
 }
@@ -319,6 +324,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 - 每個 card 的 nodeId 必須對應到心智圖中實際存在的節點 ID
 - title 必須與心智圖中對應節點的 label 完全相同
 - description 必須使用 ${responseLanguage}，且應該是一個具體、有幫助的引導問題
+- example 必須使用 ${responseLanguage}，且應為一句簡短的話或單字，不能跟已有的節點內容重複
 - 請確保回傳的是有效的 JSON 格式，不要包含任何額外的文字或說明。`,
   },
 
@@ -339,7 +345,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
   "hints": [
     {
       "explanation": "擴展建議說明（使用 ${responseLanguage}）",
-      "example": "例句（使用 ${responseLanguage}，參考他已經寫的內容）"
+      "example": "例句（使用 ${responseLanguage}，不要使用韓文，直接使用 ${responseLanguage} 寫出句子）"
     }
   ]
 }
@@ -347,7 +353,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 **重要規則：**
 1. 必須提供恰好三個擴展建議（hints 陣列必須包含三個元素）
 2. 每個建議的 explanation 必須使用 ${responseLanguage}
-3. 每個建議的 example 必須是完整的句子，以句號結尾，使用 ${responseLanguage}，參考他已經寫的內容
+3. 每個建議的 example 必須是完整的句子，以句號結尾，使用 ${responseLanguage}，不要使用韓文，參考他已經寫的內容
 4. 擴展建議應該：
    - 根據選取的句子/段落提供建議
    - 提供具體的寫作方向（例如：反思、比較、延伸、情感表達等）
@@ -361,15 +367,15 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
   "hints": [
     {
       "explanation": "${responseLanguage}的建議說明",
-      "example": "(例句，使用 ${responseLanguage}，參考他已經寫的內容)"
+      "example": "(例句，使用 ${responseLanguage}，不要使用韓文，參考他已經寫的內容)"
     },
     {
       "explanation": "${responseLanguage}的建議說明",
-      "example": "(例句，使用 ${responseLanguage}，參考他已經寫的內容)"
+      "example": "(例句，使用 ${responseLanguage}，不要使用韓文，參考他已經寫的內容)"
     },
     {
       "explanation": "${responseLanguage}的建議說明",
-      "example": "(例句，使用 ${responseLanguage}，參考他已經寫的內容)"
+      "example": "(例句，使用 ${responseLanguage}，不要使用韓文，參考他已經寫的內容)"
     }
   ]
 }
@@ -673,7 +679,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 **重要要求：**
 1. 只生成需要翻譯的句子本身，不要包含任何說明文字、提示或引導語
 2. 句子應該包含相同的文法點，讓使用者可以練習，但使用完全不同的內容和情境
-3. 句子必須使用 ${responseLanguage}
+3. 句子必須使用 ${responseLanguage}，不准使用韓文
 
 **輸出格式：**
 請以 JSON 格式輸出，格式如下：
@@ -695,13 +701,15 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 **注意：**
 - 只輸出句子本身，不要包含「請翻譯」、「注意」等引導語
 - 句子必須使用不同的詞彙和情境
-- translationQuestion 使用 ${responseLanguage}
+- translationQuestion 使用 ${responseLanguage}，不准使用韓文
 - 輸出有效的 JSON 格式，不要包含任何額外的文字或說明`,
   },
   "grammar-practice-correction": {
     model: "gpt-4.1-mini",
     temperature: 0.3,
-    systemPrompt: (responseLanguage: string) => `你是一個韓語文法教學助手。請根據使用者輸入的句子、原始錯誤和正確寫法，完成以下任務：
+    systemPrompt: (responseLanguage: string) => `你是一個韓語文法教學助手。請根據使用者輸入的句子、**實際的**原始錯誤和正確寫法，完成以下任務：
+
+**重要**：你收到的 grammarError 和 correctSentence 是 Bareun 文法檢查 API 偵測到的「使用者實際犯的錯誤」，可能與練習的目標文法不同。你必須針對這個實際錯誤來生成 corrective example 和 explanation，不要假設或套用其他文法點。
 
 1. **detailedExplanation**：將韓文錯誤解釋翻譯成 ${responseLanguage}
    - 保持原意的準確性

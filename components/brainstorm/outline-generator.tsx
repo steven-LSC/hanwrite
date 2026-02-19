@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { type Node } from "@xyflow/react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { StatusIndicator } from "@/components/ui/status-indicator";
 import { OutlineData } from "@/lib/types";
 import { generateOutline, saveOutline } from "@/lib/data/outline";
 import { logBehavior } from "@/lib/log-behavior";
+import { convertNodesToTree } from "@/lib/mindmap-utils";
 
 interface OutlineGeneratorProps {
   isOpen: boolean;
@@ -30,6 +31,9 @@ export function OutlineGenerator({
   const [outline, setOutline] = useState<OutlineData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const treeNodes = useMemo(() => convertNodesToTree(nodes), [nodes]);
+  const hasEnoughNodes = treeNodes.length >= 10;
 
   // 當 modal 開啟時，如果有 savedOutline 就使用它，否則清空
   useEffect(() => {
@@ -119,6 +123,16 @@ export function OutlineGenerator({
           ) : !outline ? (
             // 初始狀態
             <div className="flex flex-col gap-[20px]">
+              {!hasEnoughNodes && (
+                <div className="flex gap-[10px] p-[12px] rounded-[8px] bg-amber-50 border border-amber-200">
+                  <span className="material-symbols-rounded text-amber-600 shrink-0 text-[20px]">
+                    info
+                  </span>
+                  <p className="text-[14px] text-amber-800">
+                    心智圖至少需要 10 個節點才能生成大綱，目前有 {treeNodes.length} 個節點。
+                  </p>
+                </div>
+              )}
               <p className="text-[14px] text-(--color-text-secondary)">
                 No outline found. Click 'Generate' to create one.
               </p>
@@ -127,7 +141,7 @@ export function OutlineGenerator({
                   variant="primary"
                   icon="donut_large"
                   onClick={handleGenerate}
-                  disabled={isGenerating}
+                  disabled={isGenerating || !hasEnoughNodes}
                 >
                   Generate
                 </Button>
@@ -136,6 +150,16 @@ export function OutlineGenerator({
           ) : (
             // 顯示狀態
             <div className="flex flex-col gap-[30px]">
+              {!hasEnoughNodes && (
+                <div className="flex gap-[10px] p-[12px] rounded-[8px] bg-amber-50 border border-amber-200">
+                  <span className="material-symbols-rounded text-amber-600 shrink-0 text-[20px]">
+                    info
+                  </span>
+                  <p className="text-[14px] text-amber-800">
+                    心智圖至少需要 10 個節點才能重新生成大綱，目前有 {treeNodes.length} 個節點。
+                  </p>
+                </div>
+              )}
               {outline.sections.map((section) => (
                 <div key={section.type} className="flex flex-col gap-[10px]">
                   {/* 區塊標題 */}
@@ -176,7 +200,7 @@ export function OutlineGenerator({
                 variant="cancel"
                 icon="replay"
                 onClick={handleRegenerate}
-                disabled={isGenerating || isSaving}
+                disabled={isGenerating || isSaving || !hasEnoughNodes}
               >
                 Regenerate
               </Button>
