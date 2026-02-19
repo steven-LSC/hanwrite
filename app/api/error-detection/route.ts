@@ -15,36 +15,12 @@ async function callBareunApi(
   content: string,
   apiKey: string
 ): Promise<BareunApiResponse> {
-  const allowInsecureTlsFallback =
-    process.env.BAREUN_INSECURE_TLS_FALLBACK !== "false";
-
-  try {
-    return await requestBareunApi(content, apiKey, true);
-  } catch (error) {
-    if (!isTlsCertificateError(error) || !allowInsecureTlsFallback) {
-      throw error;
-    }
-
-    console.warn(
-      "[Error Detection] Bareun TLS certificate verification failed; retrying with insecure TLS fallback."
-    );
-    return requestBareunApi(content, apiKey, false);
-  }
-}
-
-function isTlsCertificateError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const code = (error as Error & { code?: string }).code;
-  return (
-    code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE" ||
-    code === "UNABLE_TO_GET_ISSUER_CERT"
-  );
+  return requestBareunApi(content, apiKey);
 }
 
 function requestBareunApi(
   content: string,
-  apiKey: string,
-  strictTls: boolean
+  apiKey: string
 ): Promise<BareunApiResponse> {
   const requestBody = JSON.stringify({
     document: { content },
@@ -62,8 +38,7 @@ function requestBareunApi(
           "api-key": apiKey,
           "Content-Length": Buffer.byteLength(requestBody),
         },
-        timeout: 15000,
-        ...(strictTls ? {} : { rejectUnauthorized: false }),
+        rejectUnauthorized: false,
       },
       (res) => {
         let responseText = "";
@@ -78,7 +53,7 @@ function requestBareunApi(
           if (statusCode < 200 || statusCode >= 300) {
             reject(
               new Error(
-                `Bareun API error (${strictTls ? "strict" : "insecure"} TLS): ${statusCode} - ${
+                `Bareun API error: ${statusCode} - ${
                   responseText || "No response body"
                 }`
               )
