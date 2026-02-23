@@ -1,10 +1,87 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getResponseLanguage, AI_CONFIGS } from "@/lib/ai-config";
 import OpenAI from "openai";
+import https from "node:https";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+// 強制使用 Node.js runtime，確保可使用 node:https 客製 TLS 設定
+export const runtime = "nodejs";
+
+async function callBareunApi(
+  content: string,
+  apiKey: string
+): Promise<BareunApiResponse> {
+  return requestBareunApi(content, apiKey);
+}
+
+function requestBareunApi(
+  content: string,
+  apiKey: string
+): Promise<BareunApiResponse> {
+  const requestBody = JSON.stringify({
+    document: { content },
+  });
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        protocol: "https:",
+        hostname: "api.bareun.ai",
+        path: "/bareun.RevisionService/CorrectError",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+          "Content-Length": Buffer.byteLength(requestBody),
+        },
+        rejectUnauthorized: false,
+      },
+      (res) => {
+        let responseText = "";
+        res.setEncoding("utf8");
+
+        res.on("data", (chunk) => {
+          responseText += chunk;
+        });
+
+        res.on("end", () => {
+          const statusCode = res.statusCode ?? 500;
+          if (statusCode < 200 || statusCode >= 300) {
+            reject(
+              new Error(
+                `Bareun API error: ${statusCode} - ${
+                  responseText || "No response body"
+                }`
+              )
+            );
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(responseText) as BareunApiResponse;
+            resolve(parsed);
+          } catch {
+            reject(new Error("Bareun API response is not valid JSON"));
+          }
+        });
+      }
+    );
+
+    req.on("timeout", () => {
+      req.destroy(new Error("Bareun API request timed out"));
+    });
+
+    req.on("error", (error) => {
+      reject(error);
+    });
+
+    req.write(requestBody);
+    req.end();
+  });
+}
 
 /**
  * Bareun API 回應型別
@@ -316,28 +393,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 使用 fetch 呼叫 Bareun API（在 Vercel 上比 https.request 更能正確處理 SSL 憑證）
-    const bareunResponse = await fetch(
-      "https://api.bareun.ai/bareun.RevisionService/CorrectError",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": process.env.BAREUN_API_KEY!,
-        },
-        body: JSON.stringify({
-          document: { content: sentence },
-        }),
-      }
-    );
-
-    if (!bareunResponse.ok) {
-      const errorText = await bareunResponse.text();
-      console.error(`[Grammar Practice] Bareun API 錯誤: ${bareunResponse.status} - ${errorText}`);
-      throw new Error(`Bareun API error: ${bareunResponse.status}`);
+    let bareunData: BareunApiResponse;
+    try {
+      bareunData = await callBareunApi(sentence, process.env.BAREUN_API_KEY!);
+    } catch (error) {
+      console.error("[Grammar Practice][Stage: bareun-api] 呼叫失敗:", error);
+      throw error;
     }
-
-    const bareunData: BareunApiResponse = await bareunResponse.json();
 
     // 檢查是否有文法錯誤
     const bareunErrorInfo = getFirstGrammarErrorInfo(bareunData);

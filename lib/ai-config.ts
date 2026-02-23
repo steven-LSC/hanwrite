@@ -67,7 +67,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
     {
       "original": "原始文字片段",
       "revised": "修改後的文字片段",
-      "explanation": "簡短解釋（使用 ${responseLanguage}）",
+      "explanation": "簡短解釋（使用 ${responseLanguage}），不要使用韓文",
       "insertAfter": "參考文字片段（僅新增時需要）"
     }
   ]
@@ -86,7 +86,7 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 2. **語體檢查（最高優先級）**：所有 revised 內容必須是書面體，絕對不能使用口語體
 3. 只列出需要修改的項目，不需要修改的不列出
 4. 最多三個修改點（必須遵守，不要超過三個）
-5. 所有解釋（explanation）和訊息（message）必須使用 ${responseLanguage}
+5. 所有解釋（explanation）和訊息（message）必須使用 ${responseLanguage}，不要使用韓文
 6. **關鍵：original 和 revised 必須只包含「實際被修改的最小文字單位」**
    - 如果是替換單詞，只提供該單詞（例如：original: "많이", revised: "자주"）
    - 如果是替換短語，只提供該短語（例如：original: "식비하고", revised: "식비랑"）
