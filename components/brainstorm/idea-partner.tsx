@@ -321,7 +321,7 @@ export function IdeaPartner({
                       icon="variable_add"
                       onClick={() => handleAddBlock(card.nodeId)}
                     >
-                      Add Block
+                      Add Node
                     </Button>
                     <Button
                       variant="cancel"
