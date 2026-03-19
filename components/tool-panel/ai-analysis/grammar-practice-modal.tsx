@@ -264,7 +264,7 @@ export function GrammarPracticeModal({
                     {checkResult.correctiveExample && (
                       <div className="flex flex-col gap-[5px]">
                         <p className="font-medium text-(--color-text-secondary)">
-                          Corrective example:
+                          Corrective Example:
                         </p>
                         <div className="text-(--color-text-secondary)">
                           {checkResult.correctiveExampleHighlight ? (
