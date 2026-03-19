@@ -33,7 +33,7 @@ export function ContextMenu({
           lightbulb
         </span>
         <span className="font-medium text-[14px] text-(--color-text-secondary)">
-          Expansion Hint
+          Expand
         </span>
       </button>
     </div>

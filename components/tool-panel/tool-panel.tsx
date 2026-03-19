@@ -161,7 +161,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
       },
       "ai-analysis": {
         icon: "wand_shine",
-        title: "AI Analysis",
+        title: "Writing Review",
         leftButtons: [
           {
             icon: "content_paste",

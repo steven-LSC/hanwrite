@@ -30,7 +30,6 @@ export function GrammarPracticeModal({
   const [sentence, setSentence] = useState("");
   const [checkResult, setCheckResult] = useState<GrammarPracticeResult | null>(null);
   const [isChecking, setIsChecking] = useState(false);
-  const [isDetailedExplanationOpen, setIsDetailedExplanationOpen] = useState(false);
   const [translationQuestion, setTranslationQuestion] = useState<string | null>(null);
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
 
@@ -113,16 +112,11 @@ export function GrammarPracticeModal({
   const handleTryAgain = () => {
     setSentence("");
     setCheckResult(null);
-    setIsDetailedExplanationOpen(false);
     generateNewQuestion();
   };
 
   const handleLeave = () => {
     handleClose();
-  };
-
-  const toggleDetailedExplanation = () => {
-    setIsDetailedExplanationOpen(!isDetailedExplanationOpen);
   };
 
   const handleCancel = () => {
@@ -148,7 +142,6 @@ export function GrammarPracticeModal({
     setSentence("");
     setCheckResult(null);
     setIsChecking(false);
-    setIsDetailedExplanationOpen(false);
     setTranslationQuestion(null);
     setIsLoadingQuestion(false);
     onClose();
@@ -293,27 +286,6 @@ export function GrammarPracticeModal({
                       </div>
                     )}
 
-                    {/* 詳細解釋 */}
-                    {checkResult.detailedExplanation && (
-                      <div className="flex flex-col gap-[5px]">
-                        <button
-                          onClick={toggleDetailedExplanation}
-                          className="flex items-center gap-[5px] text-left"
-                        >
-                          <p className="font-medium text-(--color-text-tertiary)">
-                            Detailed Explanation
-                          </p>
-                          <span className="material-symbols-rounded text-(--color-text-tertiary)">
-                            {isDetailedExplanationOpen ? "expand_less" : "expand_more"}
-                          </span>
-                        </button>
-                        {isDetailedExplanationOpen && (
-                          <p className="text-(--color-text-tertiary)">
-                            {checkResult.detailedExplanation}
-                          </p>
-                        )}
-                      </div>
-                    )}
                   </div>
                 )}
 
