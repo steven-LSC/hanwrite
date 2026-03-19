@@ -301,7 +301,7 @@ export function GrammarPracticeModal({
                           className="flex items-center gap-[5px] text-left"
                         >
                           <p className="font-medium text-(--color-text-tertiary)">
-                            Detailed explanation
+                            Detailed Explanation
                           </p>
                           <span className="material-symbols-rounded text-(--color-text-tertiary)">
                             {isDetailedExplanationOpen ? "expand_less" : "expand_more"}
