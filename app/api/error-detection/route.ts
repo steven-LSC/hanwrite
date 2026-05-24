@@ -8,6 +8,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const BAREUN_API_TIMEOUT_MS = 15000;
+const BAREUN_API_MAX_RETRIES = 1;
+const BAREUN_API_RETRY_DELAY_MS = 300;
+
 // 強制使用 Node.js runtime，確保可使用 node:https 客製 TLS 設定
 export const runtime = "nodejs";
 
@@ -15,7 +19,27 @@ async function callBareunApi(
   content: string,
   apiKey: string
 ): Promise<BareunApiResponse> {
-  return requestBareunApi(content, apiKey);
+  for (let attempt = 0; attempt <= BAREUN_API_MAX_RETRIES; attempt += 1) {
+    try {
+      return await requestBareunApi(content, apiKey);
+    } catch (error) {
+      const isLastAttempt = attempt === BAREUN_API_MAX_RETRIES;
+      const isTimeoutError =
+        error instanceof Error &&
+        error.message.includes("Bareun API request timed out");
+
+      if (!isTimeoutError || isLastAttempt) {
+        throw error;
+      }
+
+      // 僅在 timeout 時重試，避免把 API 真實錯誤隱藏掉
+      await new Promise((resolve) =>
+        setTimeout(resolve, BAREUN_API_RETRY_DELAY_MS)
+      );
+    }
+  }
+
+  throw new Error("Bareun API call failed unexpectedly");
 }
 
 function requestBareunApi(
@@ -78,6 +102,8 @@ function requestBareunApi(
     req.on("error", (error) => {
       reject(error);
     });
+
+    req.setTimeout(BAREUN_API_TIMEOUT_MS);
 
     req.write(requestBody);
     req.end();

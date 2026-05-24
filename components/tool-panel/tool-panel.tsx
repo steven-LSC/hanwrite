@@ -414,7 +414,7 @@ export const ToolPanel = forwardRef<ToolPanelRef, ToolPanelProps>(({ }, ref) => 
         {
           id: "ai-analysis" as ToolType,
           icon: "wand_shine",
-          title: "AI Analysis",
+          title: "Writing Review",
         },
         // non-ai 使用者隱藏 reverse-outlining
         ...(condition !== "non-ai"

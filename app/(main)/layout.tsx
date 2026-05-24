@@ -89,6 +89,8 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
       : pathname.split("/")[2]
     : undefined;
 
+  const isBrainstormRoute = Boolean(pathname?.startsWith("/brainstorm"));
+
   const refreshRecentWritings = async () => {
     const writings = await getRecentWritings();
     // getRecentWritings 已經根據 updatedAt 降序排序，直接設定
@@ -324,9 +326,10 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                   }
                 }
               }}
-              className={`flex items-center rounded-[10px] text-(--color-text-secondary) hover:bg-slate-100 transition-colors duration-200 cursor-pointer ${isFocusMode
-                ? "justify-center p-[5px]"
-                : "gap-[5px] px-[10px] py-[5px]"
+              className={`flex items-center rounded-[10px] text-(--color-text-secondary) transition-colors duration-200 cursor-pointer ${isBrainstormRoute ? "bg-slate-100" : "hover:bg-slate-100"
+                } ${isFocusMode
+                  ? "justify-center p-[5px]"
+                  : "gap-[5px] px-[10px] py-[5px]"
                 }`}
             >
               <span className="material-symbols-rounded text-[20px]">

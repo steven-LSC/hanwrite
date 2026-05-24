@@ -746,8 +746,20 @@ export const AI_CONFIGS: Record<string, AIConfig> = {
 輸出：
 {
   "detailedExplanation": "You used '으로' after a noun ending with ㄹ. After ㄹ-ending nouns, use '로' instead.",
-  "correctiveExample": "버스로 부산에 도착했다.",
-  "correctiveExampleHighlight": "버스로"
+  "correctiveExample": "지하철로 학교에 갔다.",
+  "correctiveExampleHighlight": "지하철로"
+}
+
+【範例 2】
+使用者輸入：사진로 추억을 남겼다.
+原始錯誤：사진로
+正確寫法：사진으로
+錯誤解釋（韓文）：받침이 있는 명사 뒤에는 '으로'를 사용해야 합니다.
+輸出：
+{
+  "detailedExplanation": "After a noun ending with a consonant (except ㄹ), use '으로' instead of '로'.",
+  "correctiveExample": "연필으로 편지를 썼다.",
+  "correctiveExampleHighlight": "연필으로"
 }
 
 請確保：

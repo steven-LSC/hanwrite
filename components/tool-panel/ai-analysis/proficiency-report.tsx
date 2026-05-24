@@ -32,10 +32,12 @@ export const ProficiencyReportComponent = forwardRef<
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
 
   // 當 writingId 或 initialResults 改變時，同步狀態
   useEffect(() => {
     setReport(initialResults);
+    setExpandedItems(new Set());
   }, [writingId, initialResults]);
 
   // 暴露 openModal 方法給父元件
@@ -63,6 +65,7 @@ export const ProficiencyReportComponent = forwardRef<
       const { results: reportData, duration } = await getProficiencyReport(writing.title, writing.content);
       setReport(reportData);
       onResultsChange(reportData);
+      setExpandedItems(new Set());
       // 收到結果後記錄
       logBehavior("proficiency-report-generate", { results: reportData, duration });
     } catch (error) {
@@ -71,6 +74,18 @@ export const ProficiencyReportComponent = forwardRef<
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const toggleItem = (index: number) => {
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
   };
 
   // 取得 Level 的顏色類別
@@ -91,7 +106,7 @@ export const ProficiencyReportComponent = forwardRef<
       closeOnBackdropClick={true}
     >
       <div
-        className="bg-white rounded-[10px] w-[800px] h-[90vh] flex flex-col overflow-hidden p-[40px] gap-[20px]"
+        className="bg-white rounded-[10px] w-[600px] h-[80vh] flex flex-col overflow-hidden p-[40px] gap-[20px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 標題區域 */}
@@ -126,28 +141,41 @@ export const ProficiencyReportComponent = forwardRef<
           ) : (
             // 有報告時的顯示
             <div className="flex flex-col gap-[20px]">
-              {report.map((item, index) => (
-                <div key={index} className="flex flex-col gap-[5px]">
-                  {/* 標題 */}
-                  <h3 className="font-medium text-[16px] text-(--color-text-primary)">
-                    {item.category}
-                  </h3>
-                  {/* Level */}
-                  <div className="flex items-center gap-[5px]">
-                    <span
-                      className={`font-medium text-[16px] ${getLevelColor(
-                        item.level
-                      )}`}
+              {report.map((item, index) => {
+                const isExpanded = expandedItems.has(index);
+                return (
+                  <div
+                    key={index}
+                    className="bg-white border border-(--color-border) rounded-[10px] p-[20px] flex flex-col gap-[10px] shrink-0"
+                  >
+                    <div
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => toggleItem(index)}
                     >
-                      Level {item.level}
-                    </span>
+                      <h3 className="flex-1 font-medium text-[16px] text-(--color-text-primary)">
+                        {item.category}
+                      </h3>
+                      <span className="material-symbols-rounded text-[20px] text-(--color-text-secondary) shrink-0">
+                        {isExpanded ? "expand_less" : "expand_more"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-[5px]">
+                      <span
+                        className={`font-medium text-[16px] ${getLevelColor(
+                          item.level
+                        )}`}
+                      >
+                        Level {item.level}
+                      </span>
+                    </div>
+                    {isExpanded && (
+                      <p className="text-[14px] text-(--color-text-secondary) whitespace-pre-wrap">
+                        {item.description}
+                      </p>
+                    )}
                   </div>
-                  {/* 描述 */}
-                  <p className="text-[14px] text-(--color-text-secondary)">
-                    {item.description}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
